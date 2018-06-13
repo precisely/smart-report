@@ -26,13 +26,13 @@ export function toHTML({ input, components = {}, markdownEngine = ()=>{}, contex
     markdownEngine?: Function,
     context?: Context
   }) {
-  var parser = new Parser({ markdownEngine });
-  var parsedInput = parser.parse(input);
+  const parser = new Parser({ markdownEngine });
+  const parsedInput = parser.parse(input);
 
-  var renderer = new Renderer({
+  const renderer = new Renderer({
     components: components
   });
-  var stream = new streams.WritableStream();
+  const stream = new streams.WritableStream();
 
   renderer.write(parsedInput, context, stream);
   return stream.toString();

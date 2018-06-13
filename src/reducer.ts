@@ -3,14 +3,16 @@ import { evaluate } from './evaluator';
 import {
   Hash, Interpolation, InterpolationFunction, Context,
   Element, TagElement, TextElement,
-  isInterpolation, isTagElement, isTextElement, Attribute
+  isInterpolation, isTagElement, isTextElement, Attribute,
+  ReducerFunction
 } from './types';
-import { isString } from 'util';
+import { isString, isArray } from 'util';
+import { isElement } from './types';
 
-type ReducerFunction = (
-  tagElt: TagElement<Interpolation>,
-  context: Context
-) => [Element<Interpolation>[], Context];
+// ReducerFunction takes a tag element and context and
+// returns a modified list of child nodes and a modified context
+// When
+const DefaultReducer: ReducerFunction = (elt: TagElement<Interpolation>, context: Context)=> [elt.children, context];
 /**
  * Renderer
  *
@@ -22,13 +24,13 @@ type ReducerFunction = (
  * interpolator uses the expression inside {} to extract a value from variables
  */
 export default class Reducer {
-  constructor({ reducers = {}, functions ={}}: {
-    reducers?: Hash<ReducerFunction>,
+  constructor({ components = {}, functions ={}}: {
+    components?: Hash<ReducerFunction>,
     functions?: Hash<InterpolationFunction>
   }) {
     this._reducers = {};
-    for (var key in reducers) {
-      this._reducers[key.toLowerCase()] = reducers[key];
+    for (var key in components) {
+      this._reducers[key.toLowerCase()] = components[key];
     }
     this._functions = functions;
   }
@@ -44,10 +46,18 @@ export default class Reducer {
    * @returns {Element<void>} - a reduced element with all interpolations removed
    * @memberof Reducer
    */
-  public reduce(elt: Element<Interpolation>, context: Context): Element<void> {
-    if (isTagElement(elt)) {
-      return this.reduceTagElement(elt, context)[0];
-    } else if (isTextElement(elt)) {
+  public reduce(
+    elt: Element<Interpolation>[],
+    context: Context
+  ): Element[] {
+    return elt.map(e => this.reduceSingleElement(e, context));
+  }
+
+  private reduceSingleElement(elt: Element<Interpolation>, context: Context): Element {
+    if (isTagElement<Interpolation>(elt)) {
+      const result: Element = this.reduceTagElement(elt, context)[0];
+      return result;
+    } else if (isTextElement<Interpolation>(elt)) {
       return this.reduceTextElement(elt, context);
     } else {
       throw new Error(`Fatal error unexpected element: ${elt}`);
@@ -57,7 +67,7 @@ export default class Reducer {
   private reducerFromElement(elt: TagElement<Interpolation>): ReducerFunction {
     const reducer = this._reducers[elt.name];
     if (!reducer) {
-      throw new Error(`No component named ${elt.rawName}`);
+      return DefaultReducer;
     }
     return reducer;
   }
@@ -73,8 +83,8 @@ export default class Reducer {
       children = elt.children;
     }
     const reducedChildren = children.map(child => {
-      return child ? this.reduce(child, context) : null;
-    }).filter(c => c) as Element<void>[];
+      return child ? this.reduceSingleElement(child, context) : null;
+    }).filter(c => c) as Element[];
     const reducedTag: TagElement = {
       ...eltWithReducedAttributes,
       attrs: interpolatedAttributes,
@@ -102,7 +112,7 @@ export default class Reducer {
   }
 
   private interpolateAttributes(attrs: Hash<Attribute<Interpolation>>, context: Context): Hash<any> {
-    var props = { ...context };
+    var props: Hash<Attribute> = {};
     for (var key in attrs) {
       var value = attrs[key];
       if (isInterpolation(value)) {
@@ -122,4 +132,9 @@ function stringified(o: any): string | null {
     return o.toString();
   }
   return null;
+}
+
+type MapTypes = {
+  string: string;
+  number: number;
 }

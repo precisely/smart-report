@@ -2,7 +2,7 @@
 import { CodeError, ErrorType } from './error';
 import { Context, Hash, InterpolationFunction, Attribute, Interpolation, Expression, Location } from './types';
 
-export enum OpType {
+export const enum OpType {
   funcall = 'funcall',
   and = 'and',
   or = 'or',

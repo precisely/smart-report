@@ -1,6 +1,6 @@
 import {Location} from './types';
 
-export enum ErrorType {
+export const enum ErrorType {
    NoClosingTag = 'NoClosingTag',
    MissingEndBracket = 'MissingEndBracket',
    UnexpectedClosingTag = 'UnexpectedClosingTag',

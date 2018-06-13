@@ -54,22 +54,28 @@ export type ComponentContext<I extends Interpolation | void = void> = {
 
 export type Props = ComponentContext<Interpolation>;
 
-export type WritableObject =  ComponentContext | Attribute | Element<Interpolation> | Element<Interpolation>[];
+export type WritableObject =  void | string | number | Element<Interpolation> | Element<Interpolation>[];
 
 export type RenderingFunction = (obj: WritableObject, newContext?: Context) => void;
 
 export type Component = (props: Props, render: RenderingFunction) => void;
 
-export function isTagElement<T extends Interpolation | void>(o: Element<T>): o is TagElement<T> {
+export type ReducibleTagElement = TagElement<Interpolation>;
+export type ReducerFunction = (
+  tagElt: ReducibleTagElement,
+  context: Context
+) => [Element<Interpolation>[], Context];
+
+export function isTagElement<T extends Interpolation | void>(o: (TagElement<T> | any)): o is TagElement<T> {
   return isElement(o) && o.type === 'tag';
 }
 
-export function isTextElement<T extends Interpolation | void>(o: Element<T>): o is TextElement<T> {
+export function isTextElement<T extends Interpolation | void>(o: (TextElement<T> | any)): o is TextElement<T> {
   return isElement(o) && o.type === 'text';
 }
 
 export function isInterpolation(o: any): o is Interpolation {
-  return o && o.hasOwnProperty('interpolation') && o.type === 'interpolation';
+  return o && o.hasOwnProperty('type') && o.type === 'interpolation';
 }
 
 export function isElement(o: any): o is Element<Interpolation | void> {

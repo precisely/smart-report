@@ -12,8 +12,8 @@ describe('toHTML', function() {
     }
   };
 
-  it.only('should create HTML in one step with evilStreakEngine', function() {
-    var result = toHTML({
+  it('should create HTML in one step with evilStreakEngine', function() {
+    const result = toHTML({
       input:
         '<SimpleComponent a={ x.y }>\n' +
         '  <SimpleComponent a=123>\n' +
@@ -32,7 +32,7 @@ describe('toHTML', function() {
   });
 
   it('should create HTML in one step with showdownEngine', function () {
-    var result = toHTML({
+    const result = toHTML({
       input:
         '<SimpleComponent a={ x.y }>\n' +
         '  <SimpleComponent a=123>\n' +

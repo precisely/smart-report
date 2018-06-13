@@ -1,6 +1,7 @@
 import { isObject, isArray, isString, isNumber } from 'lodash';
 import { evaluate } from './evaluator';
 import { Writable } from 'stream';
+import { CodeError } from './error';
 import {
   Hash, InterpolationFunction, Component, Context,
   Element, TagElement, TextElement, WritableObject, RenderingFunction,
@@ -8,7 +9,9 @@ import {
   isElement, ComponentContext, Interpolation
 } from './types';
 
-const DefaultComponent: Component = (attrs: ComponentContext<Interpolation>, render: RenderingFunction) => {};
+const DefaultComponent: Component = (attrs: ComponentContext<Interpolation>, render: RenderingFunction) => {
+  throw new CodeError(`Unrecognized component: ${attrs.__name}`, )
+};
 /**
  * Renderer
  *
@@ -45,10 +48,10 @@ export default class Renderer {
       elements.forEach(function (elt) {
         _this.write(elt, context, stream);
       });
-    } else if (isObject(elt)) {
+    } else if (isElement(elt)) {
       this.writeElement(elt, context, stream);
     } else {
-      throw new Error(`Unexpected dom element: ${JSON.stringify(elt)}`);
+      throw new Error(`Unexpected element: ${JSON.stringify(elt)}`);
     }
   }
 
@@ -66,7 +69,7 @@ export default class Renderer {
       newContext = newContext || context;
       if (isString(obj) || isNumber(obj)) {
         stream.write(obj);
-      } else if (isElement(obj)) {
+      } else if (isArray(obj) || isElement(obj)) {
         _this.write(obj, newContext, stream);
       }
     };
@@ -88,10 +91,13 @@ export default class Renderer {
     }
   };
 
-  private renderTextElement(textElement: TextElement<Interpolation>, context: Context, render: RenderingFunction) {
+  private renderTextElement(textElement: TextElement<Interpolation | void>, context: Context, render: RenderingFunction) {
     textElement.blocks.forEach(block => {
       if (isInterpolation(block)) {
-        render(evaluate(block.expression, context, this._functions));
+        const value = evaluate(block.expression, context, this._functions);
+        if (value) {
+          render(value);
+        }
       } else if (block) {
         render(block);
       }
