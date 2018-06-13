@@ -179,20 +179,20 @@ describe('Cursor', function () {
     });
 
     it('should return 0 for lineNumber 1', function () {
-      expect(cursor.lineIndex(1)).toEqual(0);
+      expect(cursor.indexFromLine(1)).toEqual(0);
     });
 
     it('should throw for lineNumber<1', function () {
-      expect(()=>cursor.lineIndex(0)).toThrow();
-      expect(()=>cursor.lineIndex(-2)).toThrow();
+      expect(()=>cursor.indexFromLine(0)).toThrow();
+      expect(()=>cursor.indexFromLine(-2)).toThrow();
     });
 
     it('should return the index of the first character of the second line for lineNumber=2', function () {
-      expect(cursor.lineIndex(2)).toEqual(6);
+      expect(cursor.indexFromLine(2)).toEqual(6);
     });
 
     it('should return the index of the first character of the third line for lineNumber=3', function () {
-      expect(cursor.lineIndex(3)).toEqual(11);
+      expect(cursor.indexFromLine(3)).toEqual(11);
     });
   });
 });

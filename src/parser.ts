@@ -13,7 +13,7 @@ export const ATTRIBUTE_RE = /^\s*([^/=<>"'\s]+)\s*(?:=\s*((?:"([^"]*)")|([-+]?[0
 type CaptureFn = () => Element<Interpolation> | null;
 
 export default class Parser {
-  constructor({ markdownEngine = null, interpolationPoint = null, indentedMarkdown = true }:
+  constructor({ markdownEngine = null, interpolationPoint = null, indentedMarkdown = false }:
     {
       markdownEngine?: Function,
       interpolationPoint?: string,
@@ -57,14 +57,14 @@ export default class Parser {
     return false;
   }
 
-  content(closeTag?: string): Element<Interpolation>[] {
+  content(closeTag?: string, removeIndent: boolean = false): Element<Interpolation>[] {
     const closeTest: RegExp | null = closeTag ? new RegExp(`^</${closeTag}>`, 'i') : null;
     var elements: Element<Interpolation>[] = [];
 
     while (!this.cursor.eof) {
       if (
         this.captureContentUntil(()=>this.tag(), closeTest, elements) ||
-        this.captureContentUntil(()=>this.text(), closeTest, elements)
+        this.captureContentUntil(()=>this.text(removeIndent), closeTest, elements)
       ) {
         return elements;
       }
@@ -78,11 +78,12 @@ export default class Parser {
   }
 
   tag(): TagElement<Interpolation> | null {
+    // TODO: consider adding \s* to beginning of this regex:
     const tagMatch = this.cursor.capture(/^<(\/?\w+)/);
     if (tagMatch) {
       const rawName = tagMatch[1];
       const attrs = this.captureAttributes();
-      const endBracket = this.cursor.capture(/^\s*(\/)?>/);
+      const endBracket = this.cursor.capture(/^\s*(\/)?>[ \t]*[\r\n]?/);
       const name = rawName.toLowerCase();
 
       if (!endBracket) {
@@ -94,7 +95,7 @@ export default class Parser {
       }
 
       const selfClosing = (endBracket[1]==='/');
-      const children = selfClosing ? [] : this.content(rawName);
+      const children = selfClosing ? [] : this.content(rawName, this._indentedMarkdown);
 
       return {
         type: 'tag',
@@ -105,8 +106,8 @@ export default class Parser {
     return null;
   }
 
-  text(): TextElement<Interpolation> | null {
-    const [textBlocks, interpolationElements] = this.captureTextAndInterpolations();
+  text(removeIndent = true): TextElement<Interpolation> | null {
+    const [textBlocks, interpolationElements] = this.captureTextAndInterpolations(removeIndent);
     const renderedTextBlocks = this.renderMarkdownBlocks(textBlocks);
     const blocks = this.zipTextAndInterpolation(renderedTextBlocks, interpolationElements);
 
@@ -151,89 +152,55 @@ export default class Parser {
     return processedTextBlocks;
   }
 
-  removeIndent(text: string) {
-    const textBlockLines = text.split('\n');
-    var [startLine, firstIndent] = this.findFirstIndentedLine(textBlockLines);
+  removeIndentsFromBlocks(textBlocks: string[], startLineNumber: number): string[] {
+    const splitPoint = `{split ${this._interpolationPoint.split('').reverse().join('')}}`;
+    const textWithSplitPoint = textBlocks.join('').replace(
+      this._interpolationPoint,
+      splitPoint + this._interpolationPoint + splitPoint);
+    const dedentedText = this.removeRawIndent(textWithSplitPoint, startLineNumber);
+    return dedentedText.split(splitPoint);
+  }
 
-    var resultLines = [];
-    for (let lineIndex=startLine; lineIndex<textBlockLines.length; lineIndex++) {
-      let line = textBlockLines[lineIndex];
-      let lineIndent = getIndent(line);
-      if (lineIndent) {
-        if (lineIndent >= firstIndent) {
-          resultLines.push(line.slice(firstIndent));
-        } else {
-          // found a dedent - forbidden!
-          // position cursor at the location where problem was detected
-          let cursor = this.cursor;
-          let lineNumber = startLine+lineIndex+1; // lineNumber is 1-indexed, so add 1
-          cursor.seek(cursor.lineIndex(lineNumber)+lineIndent);
+  removeRawIndent(text: string, startLineNumber: number): string {
+    const textBlockLines = text.split('\n');
+    let indentation: number | null = null;
+    const resultLines: string[] = [];
+
+    for (const line of textBlockLines) {
+      const lineIndent = this.getIndent(line);
+      if (lineIndent !== null) {
+        if (indentation === null) indentation = lineIndent;
+        if (lineIndent >= indentation) {
+          resultLines.push(line.slice(indentation))
+        } else { // error! dedent detected
+          const cursor = this.cursor;
+          cursor.seek(cursor.indexFromLine(startLineNumber));
           throw new CodeError('Bad indentation in text block', cursor, ErrorType.BadIndentation);
         }
       }
     }
+
     return resultLines.join('\n');
   }
 
-  findFirstIndentedLine(textBlockLines: string[]) {
-    var firstIndent;
-    var startLine;
-    for (startLine=0; startLine<textBlockLines.length; startLine++) {
-      firstIndent = getIndent(textBlockLines[startLine]);
-      if (firstIndent) {
-        break;
-      }
-    }
-    return [startLine, firstIndent];
+  /**
+   * Size of indentation (if line is indented) or null
+   * @param line line of text
+   * @returns number of leading white space characters
+   */
+  getIndent(line: string): number | null {
+    const indentRE = /^(\s*)[^\s]/;
+    const indentMatch = indentRE.exec(line);
+    return indentMatch && indentMatch[1].length;
   }
 
-  // screwed up version:
-  // removeIndent(text: string): string {
-  //   const textBlockLines = text.split('\n');
-  //   var [startLine, firstIndent] = this.findFirstIndentedLine(textBlockLines);
-
-  //   if (isNumber(startLine) && isNumber(firstIndent)) {
-  //     var resultLines = [];
-  //     for (let lineIndex=startLine; lineIndex<textBlockLines.length; lineIndex++) {
-  //       let line = textBlockLines[lineIndex];
-  //       let lineIndent = getIndent(line);
-  //       if (isNumber(lineIndent)) {
-  //         if (lineIndent >= firstIndent) {
-  //           resultLines.push(line.slice(firstIndent));
-  //         } else {
-  //           // found a dedent - forbidden!
-  //           // position cursor at the location where problem was detected
-  //           let cursor = this.cursor;
-  //           let lineNumber = startLine+lineIndex+1; // lineNumber is 1-indexed, so add 1
-  //           cursor.seek(cursor.lineIndex(lineNumber)+lineIndent);
-  //           throw new CodeError('Bad indentation in text block', cursor, ErrorType.BadIndentation);
-  //         }
-  //       }
-  //     }
-  //     return resultLines.join('\n');
-  //   }
-  //   return text;
-  // }
-
-  // findFirstIndentedLine(textBlockLines: string[]) {
-  //   var firstIndent;
-  //   var startLine;
-  //   for (startLine=0; startLine<textBlockLines.length; startLine++) {
-  //     firstIndent = getIndent(textBlockLines[startLine]);
-  //     if (isNumber(firstIndent)) {
-  //       break;
-  //     }
-  //   }
-  //   return [startLine, firstIndent];
-  // }
-
   captureTextUntilBreak() {
-    let blocks = [];
+    const blocks = [];
     let textMatch: RegExpMatchArray | null;
 
     while (textMatch=this.cursor.capture(/^\s*([^<{}>])*/)) {
       // detect {{ << escape sequences, and non-tag angle bracket
-      var escapedText = this.cursor.capture(/^({{|}}|<<|>>)/);
+      const escapedText = this.cursor.capture(/^({{|}}|<<|>>)/);
       if (escapedText) {
         // this is not a break, capture the character and continue...
         blocks.push(textMatch[0] + escapedText[0][0]);
@@ -270,36 +237,36 @@ export default class Parser {
   //
   // Text and Interpolations
   //
-  captureTextAndInterpolations(): [string[], Interpolation[]] {
+  captureTextAndInterpolations(removeIndent = false): [string[], Interpolation[]] {
     const interpolationElements: Interpolation[] = [];
-    const textBlocks: string[] = [];
+    let textBlocks: string[] = [];
     const captureAndStoreInterpolation = () => {
       const interpolation = this.captureInterpolation();
       if (interpolation) {
         interpolationElements.push(interpolation);
         textBlocks.push(this._interpolationPoint);
       }
+      return true;
     };
 
     // this.cursor may start with an interpolation...
     captureAndStoreInterpolation();
-
-    var rawText;
+    const startLineNumber = this.cursor.lineNumber;
+    let rawText;
     while (rawText = this.captureTextUntilBreak()) {
-      if (this._indentedMarkdown) {
-        // if parser allows indented markdown, remove the indent:
-        textBlocks.push(this.removeIndent(rawText));
-      } else {
-        textBlocks.push(rawText);
-      }
+      textBlocks.push(rawText);
       captureAndStoreInterpolation();
     }
-
+    if (removeIndent) {
+      textBlocks = this.removeIndentsFromBlocks(textBlocks, startLineNumber);
+    }
     return [textBlocks, interpolationElements];
   }
 
   //
+  //
   // Interpolation Parsing
+  //
   //
   captureInterpolation(): Interpolation | null {
     if (this.cursor.capture(/^\s*\{/)) {
@@ -410,11 +377,5 @@ export default class Parser {
     }
     return args;
   }
-}
-
-function getIndent(line: string) {
-  const indentRE = /^(\s*)[^\s]/;
-  const indentMatch = indentRE.exec(line);
-  return indentMatch && indentMatch[1].length;
 }
 

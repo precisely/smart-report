@@ -12,7 +12,7 @@ describe('toHTML', function() {
     }
   };
 
-  it('should create HTML in one step with evilStreakEngine', function() {
+  it.only('should create HTML in one step with evilStreakEngine', function() {
     var result = toHTML({
       input:
         '<SimpleComponent a={ x.y }>\n' +

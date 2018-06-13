@@ -93,7 +93,12 @@ export default class Cursor implements Location {
     }
   }
 
-  lineIndex(lineNumber: number): number {
+  /**
+   * Returns the 0-based character index of a line
+   * @param lineNumber - the 1-based index of a line
+   * @returns {number} the 0-based character index of the first character on the line
+   */
+  indexFromLine(lineNumber: number): number {
     const lines = this._buffer.toString().split('\n');
     const selectedLines = lines.slice(0, lineNumber-1);
     var total = 0;

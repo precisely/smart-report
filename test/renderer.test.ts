@@ -1,16 +1,18 @@
 import { Parser, Renderer } from '../src';
-import streams from 'memory-streams';
+import streams, { WritableStream } from 'memory-streams';
 import { markdownItEngine } from '../src/engines';
+import { Hash, Component, Element, Interpolation } from '../src/types';
+import { Stream } from 'stream';
 
 describe('Renderer', function () {
   var components: Hash<Component>;
-  var parse: ;
+  var parse: (input: string) => Element<Interpolation>[];
 
   describe('write', function () {
 
     beforeEach(function() {
       var parser = new Parser({ markdownEngine: markdownItEngine() });
-      parse = input => parser.parse(input);
+      parse = (input: string) => parser.parse(input);
       components =  {
         SimpleComponent: function ({ __children, a }, render) {
           render('<div class="simple-component">');
@@ -168,7 +170,9 @@ describe('Renderer', function () {
       });
       const stream = new streams.WritableStream();
       class X {};
+      // @ts-ignore: these tests are for JS-library users
       expect(()=>renderer.write(1, {}, stream)).toThrow();
+      // @ts-ignore
       expect(()=>renderer.write(new X(), {}, stream)).toThrow();
     });
 
@@ -220,12 +224,13 @@ describe('Renderer', function () {
         );
       });
 
-      it('and defaultComponent is not provided,', function () {
+      it('and defaultComponent is not provided, it should throw', function () {
         const renderer = new Renderer({
           components: components
         });
         const dom = parse('<default a=123 b="hello" c={val}></default>');
-        expect(()=>renderer.write(dom, { val: 'myval' })).toThrow();
+        const stream = new WritableStream();
+        expect(()=>renderer.write(dom, { val: 'myval' }, stream)).toThrow();
       });
     });
 
