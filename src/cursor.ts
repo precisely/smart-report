@@ -2,9 +2,13 @@ import { Location } from './types';
 import { Stream } from 'stream';
 
 export default class Cursor implements Location {
-  constructor(input: any, index: number = 0) {
+  constructor(input: Buffer | string, index: number = 0) {
     this._index = index;
-    this._buffer = new Buffer(input);
+    if (input instanceof Buffer) { // funky duplication because @types/node uses overloads
+      this._buffer = new Buffer(input);
+    } else {
+      this._buffer = new Buffer(input);
+    }
   }
   private _index: number;
   private readonly _buffer: Buffer;
@@ -28,7 +32,7 @@ export default class Cursor implements Location {
    * @returns {Buffer} result
    * @memberof Cursor
    */
-  peek(length=1, offset=0) {
+  peek(length: number = 1, offset: number = 0) {
     return this._buffer.slice(this._index + offset, this._index + length + offset).toString();
   }
 
@@ -65,7 +69,7 @@ export default class Cursor implements Location {
    * @param {number} [index=0]
    * @memberof Cursor
    */
-  seek(index = 0): void {
+  seek(index: number = 0): void {
     this._index = index;
   }
 
@@ -83,7 +87,7 @@ export default class Cursor implements Location {
    *
    * @memberof Cursor
    */
-  next(n=1): string | null {
+  next(n: number = 1): string | null {
     if (!this.eof) {
       var result = this._buffer.slice(this._index, this._index + n).toString();
       this._index += n;
@@ -100,12 +104,12 @@ export default class Cursor implements Location {
    */
   indexFromLine(lineNumber: number): number {
     const lines = this._buffer.toString().split('\n');
-    const selectedLines = lines.slice(0, lineNumber-1);
+    const selectedLines = lines.slice(0, lineNumber - 1);
     var total = 0;
-    if (lineNumber<1 || lineNumber>lines.length) {
+    if (lineNumber < 1 || lineNumber > lines.length) {
       throw new Error(`Line number out of range ${lineNumber}`);
     }
-    selectedLines.forEach(line=> {
+    selectedLines.forEach(line => {
       total += line.length + 1;
     });
     return total;
@@ -121,7 +125,7 @@ export default class Cursor implements Location {
   }
 
   get columnNumber(): number {
-    const lastLine = this.lines[this.lineNumber-1];
+    const lastLine = this.lines[this.lineNumber - 1];
     return lastLine ? lastLine.length + 1 : 1;
   }
 }

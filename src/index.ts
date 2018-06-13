@@ -16,10 +16,9 @@ export { Renderer, Parser };
  * @param {Function} options.defaultComponent - function ({__name, __children, ...props}, render)
  * @param {Function} options.interpolator - optional interpolation function (variables, expr)
  *                                      => value (default is standardInterpolator)
-
-  * @returns {string} HTML
-  */
-export function toHTML({ input, components = {}, markdownEngine = ()=>{}, context = {} }:
+ * @returns {string} HTML
+ */
+export function toHTML({ input, components = {}, markdownEngine = () => null, context = {} }:
   {
     input: string,
     components?: Hash<Component>,

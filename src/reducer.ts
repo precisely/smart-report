@@ -12,7 +12,7 @@ import { isElement } from './types';
 // ReducerFunction takes a tag element and context and
 // returns a modified list of child nodes and a modified context
 // When
-const DefaultReducer: ReducerFunction = (elt: TagElement<Interpolation>, context: Context)=> [elt.children, context];
+const DefaultReducer: ReducerFunction = (elt: TagElement<Interpolation>, context: Context) => [elt.children, context];
 /**
  * Renderer
  *
@@ -24,13 +24,15 @@ const DefaultReducer: ReducerFunction = (elt: TagElement<Interpolation>, context
  * interpolator uses the expression inside {} to extract a value from variables
  */
 export default class Reducer {
-  constructor({ components = {}, functions ={}}: {
+  constructor({ components = {}, functions = {}}: {
     components?: Hash<ReducerFunction>,
     functions?: Hash<InterpolationFunction>
   }) {
     this._reducers = {};
-    for (var key in components) {
-      this._reducers[key.toLowerCase()] = components[key];
+    for (const key in components) {
+      if (components.hasOwnProperty(key)) {
+        this._reducers[key.toLowerCase()] = components[key];
+      }
     }
     this._functions = functions;
   }
@@ -103,7 +105,7 @@ export default class Reducer {
       } else {
         return block;
       }
-    }).filter(b=>b) as string[];
+    }).filter(b => b) as string[];
     return {
       ...textElement,
       blocks: reducedBlocks,
@@ -111,30 +113,27 @@ export default class Reducer {
     };
   }
 
-  private interpolateAttributes(attrs: Hash<Attribute<Interpolation>>, context: Context): Hash<any> {
-    var props: Hash<Attribute> = {};
-    for (var key in attrs) {
-      var value = attrs[key];
-      if (isInterpolation(value)) {
-        props[key] = evaluate(value.expression, context, this._functions);
-      } else {
-        props[key] = value;
+  private interpolateAttributes(attrs: Hash<Attribute<Interpolation>>, context: Context): Hash<any> { // tslint:disable-line
+    const props: Hash<Attribute> = {};
+    for (const key in attrs) {
+      if (attrs.hasOwnProperty(key)) {
+        const value = attrs[key];
+        if (isInterpolation(value)) {
+          props[key] = evaluate(value.expression, context, this._functions);
+        } else {
+          props[key] = value;
+        }
       }
     }
     return props;
   }
 }
 
-function stringified(o: any): string | null {
+function stringified(o: any): string | null { // tslint:disable-line
   if (isString(o)) {
     return htmlEncode(o);
   } else if (o) {
     return o.toString();
   }
   return null;
-}
-
-type MapTypes = {
-  string: string;
-  number: number;
 }

@@ -24,5 +24,3 @@ export class CodeError extends Error {
     return this.location.columnNumber;
   }
 }
-
-

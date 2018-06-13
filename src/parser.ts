@@ -8,7 +8,7 @@ import { isNumber } from 'util';
 import { start } from 'repl';
 
 export const DEFAULT_INTERPOLATION_POINT = '=interpolation-point=';
-export const ATTRIBUTE_RE = /^\s*([^/=<>"'\s]+)\s*(?:=\s*((?:"([^"]*)")|([-+]?[0-9]*\.?[0-9]+)|((?=\{))|(true|false)))?/;
+export const ATTRIBUTE_RE = /^\s*([^/=<>"'\s]+)\s*(?:=\s*((?:"([^"]*)")|([-+]?[0-9]*\.?[0-9]+)|((?=\{))|(true|false)))?/; // tslint:disable-line
 
 type CaptureFn = () => Element<Interpolation> | null;
 
@@ -23,10 +23,10 @@ export default class Parser {
       throw new Error('Invalid markdownEngine');
     }
 
-    this._markdownEngine = markdownEngine || (() => {});
+    this._markdownEngine = markdownEngine || (() => null);
     this._interpolationPoint = interpolationPoint || DEFAULT_INTERPOLATION_POINT;
     this._indentedMarkdown = indentedMarkdown;
-    this.cursor = new Cursor("");
+    this.cursor = new Cursor('');
   }
 
   public get interpolationPoint() { return this._interpolationPoint; }
@@ -44,9 +44,13 @@ export default class Parser {
   }
 
   // returns true if a close is encountered
-  captureContentUntil(capture: CaptureFn, closeTest: RegExp | undefined | false | void | null, elements: Element<Interpolation>[]): boolean {
+  captureContentUntil(
+    capture: CaptureFn,
+    closeTest: RegExp | undefined | false | void | null,
+    elements: Element<Interpolation>[]
+  ): boolean {
     // check for closing tag before we capture anything:
-    if (closeTest && this.cursor.capture(closeTest)){
+    if (closeTest && this.cursor.capture(closeTest)) {
       return true;
     } else {
       var elt = capture();
@@ -63,8 +67,8 @@ export default class Parser {
 
     while (!this.cursor.eof) {
       if (
-        this.captureContentUntil(()=>this.tag(), closeTest, elements) ||
-        this.captureContentUntil(()=>this.text(removeIndent), closeTest, elements)
+        this.captureContentUntil(() => this.tag(), closeTest, elements) ||
+        this.captureContentUntil(() => this.text(removeIndent), closeTest, elements)
       ) {
         return elements;
       }
@@ -87,14 +91,18 @@ export default class Parser {
       const name = rawName.toLowerCase();
 
       if (!endBracket) {
-        throw new CodeError(`Missing end bracket while parsing '<${rawName} ...'`, this.cursor, ErrorType.MissingEndBracket);
+        throw new CodeError(
+          `Missing end bracket while parsing '<${rawName} ...'`,
+          this.cursor,
+          ErrorType.MissingEndBracket
+        );
       }
 
-      if (name[0]==='/') {
+      if (name[0] === '/') {
         throw new CodeError(`Unexpected closing tag <${rawName}>`, this.cursor, ErrorType.UnexpectedClosingTag);
       }
 
-      const selfClosing = (endBracket[1]==='/');
+      const selfClosing = (endBracket[1] === '/');
       const children = selfClosing ? [] : this.content(rawName, this._indentedMarkdown);
 
       return {
@@ -106,12 +114,12 @@ export default class Parser {
     return null;
   }
 
-  text(removeIndent = true): TextElement<Interpolation> | null {
+  text(removeIndent: boolean = true): TextElement<Interpolation> | null {
     const [textBlocks, interpolationElements] = this.captureTextAndInterpolations(removeIndent);
     const renderedTextBlocks = this.renderMarkdownBlocks(textBlocks);
     const blocks = this.zipTextAndInterpolation(renderedTextBlocks, interpolationElements);
 
-    if (blocks.length>0) {
+    if (blocks.length > 0) {
       return {
         type: 'text',
         blocks: blocks,
@@ -124,10 +132,10 @@ export default class Parser {
 
   zipTextAndInterpolation(textBlocks: string[], interpolationElements: Interpolation[]) {
     const blocks = [];
-    var i=0;
-    while (textBlocks.length>i || interpolationElements.length>i) {
+    let i = 0;
+    while (textBlocks.length > i || interpolationElements.length > i) {
       const [text, interpolation] = [textBlocks[i], interpolationElements[i]];
-      if (text && text.length>0) {
+      if (text && text.length > 0) {
         blocks.push(text);
       }
       if (interpolation) {
@@ -136,7 +144,7 @@ export default class Parser {
       i++;
     }
     // remove empty text elements before returning
-    return blocks.filter(block=>block!=='');
+    return blocks.filter(block => block !== '');
   }
 
   //
@@ -169,9 +177,9 @@ export default class Parser {
     for (const line of textBlockLines) {
       const lineIndent = this.getIndent(line);
       if (lineIndent !== null) {
-        if (indentation === null) indentation = lineIndent;
+        if (indentation === null) { indentation = lineIndent; }
         if (lineIndent >= indentation) {
-          resultLines.push(line.slice(indentation))
+          resultLines.push(line.slice(indentation));
         } else { // error! dedent detected
           const cursor = this.cursor;
           cursor.seek(cursor.indexFromLine(startLineNumber));
@@ -198,7 +206,7 @@ export default class Parser {
     const blocks = [];
     let textMatch: RegExpMatchArray | null;
 
-    while (textMatch=this.cursor.capture(/^\s*([^<{}>])*/)) {
+    while (textMatch = this.cursor.capture(/^\s*([^<{}>])*/)) {
       // detect {{ << escape sequences, and non-tag angle bracket
       const escapedText = this.cursor.capture(/^({{|}}|<<|>>)/);
       if (escapedText) {
@@ -223,10 +231,10 @@ export default class Parser {
         attribs[variable] = match[3];
       } else if (match[4]) { // number
         attribs[variable] = parseFloat(match[4]);
-      } else if (match[5] === ''){ // interpolation start
+      } else if (match[5] === '') { // interpolation start
         attribs[variable] = this.captureInterpolation();
       } else if (match[6]) {
-        attribs[variable] = match[6]==='true' ? true : false;
+        attribs[variable] = match[6] === 'true' ? true : false;
       } else { // must be boolean true
         attribs[variable] = true;
       }
@@ -237,7 +245,7 @@ export default class Parser {
   //
   // Text and Interpolations
   //
-  captureTextAndInterpolations(removeIndent = false): [string[], Interpolation[]] {
+  captureTextAndInterpolations(removeIndent: boolean = false): [string[], Interpolation[]] {
     const interpolationElements: Interpolation[] = [];
     let textBlocks: string[] = [];
     const captureAndStoreInterpolation = () => {
@@ -290,7 +298,7 @@ export default class Parser {
       this.cursor.capture(/^\s*/);
       lhs = this.captureInterpolationTerm(lhs, terminator);
       if (!lhs) {
-        break;;
+        break;
       }
     }
     return lhs;
@@ -298,14 +306,18 @@ export default class Parser {
 
   captureInterpolationTerm(lhs: Expression | null, terminator: RegExp): Expression | null {
     const expressionMatch = this.cursor.capture(
-      /^\s*(?:(and\b|or\b)|(not\b)|(\()|([a-zA-Z][.\w]*)\s*(\()?|(\"[^\"]*\"|\'[^\']*\'|true|false|[+-]?(?:[0-9]*[.])?[0-9]+))/i
+      /^\s*(?:(and\b|or\b)|(not\b)|(\()|([a-zA-Z][.\w]*)\s*(\()?|(\"[^\"]*\"|\'[^\']*\'|true|false|[+-]?(?:[0-9]*[.])?[0-9]+))/i // tslint:disable-line
     );
     if (expressionMatch) {
       const capture = expressionMatch[0].trim();
       if (expressionMatch[1]) { // binary operator
         return this.captureInterpolationBinaryOperator(expressionMatch[1], lhs, terminator);
       } else if (lhs) {
-        throw new CodeError(`Expecting "and" or "or" but received "${capture}"`, this.cursor, ErrorType.InvalidExpression);
+        throw new CodeError(
+          `Expecting "and" or "or" but received "${capture}"`,
+          this.cursor,
+          ErrorType.InvalidExpression
+        );
       } else if (expressionMatch[4]) {
         return this.captureSymbolExpression(expressionMatch[4], !!expressionMatch[5]);
       } else if (expressionMatch[6]) { // scalar
@@ -378,4 +390,3 @@ export default class Parser {
     return args;
   }
 }
-

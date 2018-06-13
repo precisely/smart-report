@@ -1,7 +1,7 @@
 import { isObject, isArray, isNumber, isString } from 'lodash';
 
-export type Context = { [key: string]: any };
-export type InterpolationFunction = (context: Context, ...args: any[]) => Attribute;
+export type Context = { [key: string]: any }; // tslint:disable-line
+export type InterpolationFunction = (context: Context, ...args: any[]) => Attribute; // tslint:disable-line
 
 export interface Hash<T> {
   [key: string]: T;
@@ -12,7 +12,7 @@ export interface Interpolation {
   expression: Expression;
 }
 
-export type Expression = any[];
+export type Expression = any[]; // tslint:disable-line
 
 export type JSONValue = string | number | boolean | JSONObject | JSONArray;
 export interface JSONObject {
@@ -38,7 +38,7 @@ export interface TagElement<
   rawName: string;
   attrs: Hash<Attribute<I>>;
   children: Element<CI>[];
-  selfClosing?: boolean
+  selfClosing?: boolean;
 }
 
 export interface TextElement<I extends Interpolation | void = void> extends Element<I> {
@@ -49,8 +49,10 @@ export interface TextElement<I extends Interpolation | void = void> extends Elem
 export type ComponentContext<I extends Interpolation | void = void> = {
   __name: string;
   __children: Element<I>[];
-  [key: string]: any; // type should be Attribute, but Typescript complains
-}
+
+  // type should be Attribute, but Typescript complains:
+  [key: string]: any; // tslint:disable-line
+};
 
 export type Props = ComponentContext<Interpolation>;
 
@@ -66,23 +68,23 @@ export type ReducerFunction = (
   context: Context
 ) => [Element<Interpolation>[], Context];
 
-export function isTagElement<T extends Interpolation | void>(o: (TagElement<T> | any)): o is TagElement<T> {
+export function isTagElement<T extends Interpolation | void>(o: (TagElement<T> | any)): o is TagElement<T> { // tslint:disable-line
   return isElement(o) && o.type === 'tag';
 }
 
-export function isTextElement<T extends Interpolation | void>(o: (TextElement<T> | any)): o is TextElement<T> {
+export function isTextElement<T extends Interpolation | void>(o: (TextElement<T> | any)): o is TextElement<T> { // tslint:disable-line
   return isElement(o) && o.type === 'text';
 }
 
-export function isInterpolation(o: any): o is Interpolation {
+export function isInterpolation(o: any): o is Interpolation { // tslint:disable-line
   return o && o.hasOwnProperty('type') && o.type === 'interpolation';
 }
 
-export function isElement(o: any): o is Element<Interpolation | void> {
+export function isElement(o: any): o is Element<Interpolation | void> { // tslint:disable-line
   return o && o.hasOwnProperty('type');
 }
 
 export interface Location {
   lineNumber: number;
-  columnNumber: number
+  columnNumber: number;
 }

@@ -10,7 +10,11 @@ import {
 } from './types';
 
 const DefaultComponent: Component = (attrs: ComponentContext<Interpolation>, render: RenderingFunction) => {
-  throw new CodeError(`Unrecognized component: ${attrs.__name}`, {lineNumber:1, columnNumber:1}, ErrorType.UnknownTag);
+  throw new CodeError(
+    `Unrecognized component: ${attrs.__name}`,
+    { lineNumber: 1, columnNumber: 1}, // TODO: need to add location to component so we can report correctly
+    ErrorType.UnknownTag
+  );
 };
 /**
  * Renderer
@@ -31,8 +35,10 @@ export default class Renderer {
     functions?: Hash<InterpolationFunction>
   }) {
     this._components = {};
-    for (var key in components) {
-      this._components[key.toLowerCase()] = components[key];
+    for (const key in components) {
+      if (components.hasOwnProperty(key)) {
+        this._components[key.toLowerCase()] = components[key];
+      }
     }
     this._defaultComponent = defaultComponent ;
     this._functions = functions;
@@ -41,17 +47,16 @@ export default class Renderer {
   private _defaultComponent: Component;
   private _functions: Hash<InterpolationFunction>;
 
-  public write(elt: Element<Interpolation> | Element<Interpolation>[], context: Context, stream: Writable) {
-    if (isArray(elt)) {
-      var _this = this;
-      var elements = elt;
-      elements.forEach(function (elt) {
-        _this.write(elt, context, stream);
+  public write(element: Element<Interpolation> | Element<Interpolation>[], context: Context, stream: Writable) {
+    if (isArray(element)) {
+      const elements = element;
+      elements.forEach((elt: Element<Interpolation>) => {
+        this.write(elt, context, stream);
       });
-    } else if (isElement(elt)) {
-      this.writeElement(elt, context, stream);
+    } else if (isElement(element)) {
+      this.writeElement(element, context, stream);
     } else {
-      throw new Error(`Unexpected element: ${JSON.stringify(elt)}`);
+      throw new Error(`Unexpected element: ${JSON.stringify(element)}`);
     }
   }
 
@@ -63,38 +68,42 @@ export default class Renderer {
     return component;
   }
 
-  private writeElement(elt: Element<Interpolation>, context: Context, stream: Writable) {
+  private writeElement(element: Element<Interpolation>, context: Context, stream: Writable) {
     const render: RenderingFunction = (obj: WritableObject, newContext?: Context) => {
       newContext = newContext || context;
 
-      const isElementArray = (elt: any): elt is Element<Interpolation>[] => isArray(elt) && isElement(elt[0]);
+      const isElementArray = (elt: any): elt is Element<Interpolation>[] => isArray(elt) && isElement(elt[0]); // tslint:disable-line
       if (isString(obj) || isNumber(obj)) {
         stream.write(obj);
       } else if (isElement(obj)) {
         this.write(obj, newContext, stream);
       } else if (isElementArray(obj)) {
-        obj.forEach(elt => render(elt, newContext));
+        obj.forEach((elt: Element<Interpolation>) => render(elt, newContext));
       }
     };
 
     // render markdown
-    if (isTextElement(elt)) {
-      this.renderTextElement(elt, context, render);
-    } else if (isTagElement<Interpolation>(elt)) {
+    if (isTextElement(element)) {
+      this.renderTextElement(element, context, render);
+    } else if (isTagElement<Interpolation>(element)) {
       // or a component:
-      const component = this.componentFromElement(elt);
+      const component = this.componentFromElement(element);
       // inject special vars into props
-      const te: TextElement<Interpolation> = {type:'text', blocks: [], reduced: false};
+      const te: TextElement<Interpolation> = {type: 'text', blocks: [], reduced: false};
       const interpolatedAttrs: ComponentContext<Interpolation> = {
-        __name: elt.name,
-        __children: elt.children,
-        ...this.interpolateAttributes(elt.attrs, context)
+        __name: element.name,
+        __children: element.children,
+        ...this.interpolateAttributes(element.attrs, context)
       };
       component(interpolatedAttrs, render);
     }
-  };
+  }
 
-  private renderTextElement(textElement: TextElement<Interpolation | void>, context: Context, render: RenderingFunction) {
+  private renderTextElement(
+    textElement: TextElement<Interpolation | void>,
+    context: Context,
+    render: RenderingFunction
+  ) {
     textElement.blocks.forEach(block => {
       if (isInterpolation(block)) {
         const value = evaluate(block.expression, context, this._functions);
@@ -108,16 +117,17 @@ export default class Renderer {
   }
 
   private interpolateAttributes(attrs: Hash<Attribute<Interpolation> | void>, context: Context): Hash<Attribute<void>> {
-    var props = { ...context };
-    for (var key in attrs) {
-      var value = attrs[key];
-      if (isInterpolation(value)) {
-        props[key] = evaluate(value.expression, context, this._functions);
-      } else {
-        props[key] = value;
+    const props = { ...context };
+    for (const key in attrs) {
+      if (attrs.hasOwnProperty(key)) {
+        const value = attrs[key];
+        if (isInterpolation(value)) {
+          props[key] = evaluate(value.expression, context, this._functions);
+        } else {
+          props[key] = value;
+        }
       }
     }
     return props;
   }
-
 }
