@@ -1,21 +1,19 @@
 import Cursor from '../src/cursor';
-import toBeType from 'jest-tobetype';
-expect.extend(toBeType);
 
 describe('Cursor', function () {
-  context('constructor', function () {
+  describe('constructor', function () {
     it('should accept a string', function () {
-      expect(new Cursor('abc')).toBeType('object');
+      expect(new Cursor('abc')).toBeInstanceOf(Cursor);
     });
 
     it('should accept a string and an index', function () {
       var cursor = new Cursor('abc', 2);
-      expect(cursor).toBeType('object');
+      expect(cursor).toBeInstanceOf(Cursor);
       expect(cursor.index).toEqual(2);
     });
   });
 
-  context('#peek', function () {
+  describe('#peek', function () {
     it('should show one character at the current index', function () {
       var cursor = new Cursor('abcdefghijk', 4);
       expect(cursor.peek()).toEqual('e');
@@ -37,7 +35,7 @@ describe('Cursor', function () {
     });
   });
 
-  context('#test', function () {
+  describe('#test', function () {
     it('should return true if the regex matches current input position', function () {
       var cursor = new Cursor('abcdefg');
       expect(cursor.test(/abc/)).toBe(true);;
@@ -61,12 +59,12 @@ describe('Cursor', function () {
     });
   });
 
-  context('#capture', function () {
+  describe('#capture', function () {
     it('should return the match and advance the index after a successful match', function () {
       var cursor = new Cursor('abcdefg');
       var capture = cursor.capture(/b(.*)e/);
       expect(capture).toBeTruthy();
-      expect(capture[0]).toEqual('bcde');
+      expect(capture && capture[0]).toEqual('bcde');
       expect(cursor.index).toEqual(5);
       expect(cursor.peek()).toEqual('f');
     });
@@ -84,7 +82,7 @@ describe('Cursor', function () {
     });
   });
 
-  context('#seek', function () {
+  describe('#seek', function () {
     it('should reset the index to 0 when no args are given', function () {
       var cursor = new Cursor('abcdefg', 5);
       cursor.seek();
@@ -98,7 +96,7 @@ describe('Cursor', function () {
     });
   });
 
-  context('#eof', function () {
+  describe('#eof', function () {
     it('should be true when index before the end of the input', function () {
       var cursor = new Cursor('abcdefg');
       cursor.seek(6);
@@ -119,7 +117,7 @@ describe('Cursor', function () {
     });
   });
 
-  context('#next', function () {
+  describe('#next', function () {
     it('should return the next character', function () {
       var cursor = new Cursor('abcdefg');
       expect(cursor.next()).toEqual('a');
@@ -140,8 +138,8 @@ describe('Cursor', function () {
     });
   });
 
-  context('when reporting location', function () {
-    var cursor;
+  describe('when reporting location', function () {
+    var cursor: Cursor;
     beforeEach(function () {
       cursor = new Cursor('123456789\n1234\n123456789');
     });
@@ -174,27 +172,27 @@ describe('Cursor', function () {
     });
   });
 
-  context('#lineIndex', function () {
-    var cursor;
+  describe('#lineIndex', function () {
+    var cursor: Cursor;
     beforeEach(function () {
       cursor = new Cursor('01234\n6789\n123456789\n');
     });
 
     it('should return 0 for lineNumber 1', function () {
-      expect(cursor.lineIndex(1)).toEqual(0);
+      expect(cursor.indexFromLine(1)).toEqual(0);
     });
 
     it('should throw for lineNumber<1', function () {
-      expect(()=>cursor.lineIndex(0)).toThrow();
-      expect(()=>cursor.lineIndex(-2)).toThrow();
+      expect(()=>cursor.indexFromLine(0)).toThrow();
+      expect(()=>cursor.indexFromLine(-2)).toThrow();
     });
 
     it('should return the index of the first character of the second line for lineNumber=2', function () {
-      expect(cursor.lineIndex(2)).toEqual(6);
+      expect(cursor.indexFromLine(2)).toEqual(6);
     });
 
     it('should return the index of the first character of the third line for lineNumber=3', function () {
-      expect(cursor.lineIndex(3)).toEqual(11);
+      expect(cursor.indexFromLine(3)).toEqual(11);
     });
   });
 });

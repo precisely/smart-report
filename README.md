@@ -1,6 +1,6 @@
-[![CircleCI](https://circleci.com/gh/aneilbaboo/markdown-components.svg?style=shield&circle-token=fbb8592a984a41740eebf952734f4776b86b0504)](https://circleci.com/gh/aneilbaboo/markdown-components) [![Maintainability](https://api.codeclimate.com/v1/badges/6cf1a9deec6c8def6f8e/maintainability)](https://codeclimate.com/github/aneilbaboo/markdown-components/maintainability) [![Test Coverage](https://api.codeclimate.com/v1/badges/6cf1a9deec6c8def6f8e/test_coverage)](https://codeclimate.com/github/aneilbaboo/markdown-components/test_coverage)
+[![CircleCI](https://circleci.com/gh/precisely/smart-report.svg?style=shield&circle-token=f23ab1dd6e3e57fb9b8a4e0a0ba12b9712d4e752)](https://circleci.com/gh/precisely/smart-report) [![Maintainability](https://api.codeclimate.com/v1/badges/f09325a34dba427331e5/maintainability)](https://codeclimate.com/repos/5b2185778d7f9c02aa007c3c/maintainability) [![Test Coverage](https://api.codeclimate.com/v1/badges/f09325a34dba427331e5/test_coverage)](https://codeclimate.com/repos/5b2185778d7f9c02aa007c3c/test_coverage)
 
-# markdown-components
+# smart-report
 
 Add custom React-like components to Markdown which can be safely used by end-users. Use with your favorite Markdown engine.
 
@@ -20,7 +20,7 @@ E.g.,
 ## Install
 
 ```javascript
-npm i markdown-components
+yarn add git@github.com:precisely/smart-report.git
 // plus your favorite markdown engine
 // npm i markdown
 // npm i showdown
@@ -30,7 +30,7 @@ npm i markdown-components
 ## Quick start
 
 ```javascript
-var { toHTML, markdownItEngine } = require("markdown-components");
+var { toHTML, markdownItEngine } = require("smart-report");
 
 // define a Box component:
 var components = {
@@ -110,7 +110,7 @@ Will be displayed on a red background
 
 Markdown components provides a content authoring language with custom components which is safe for use by end-users.
 
-|           |JSX-Markdown | markdown-it-shortcodes | markdown-components |
+|           |JSX-Markdown | markdown-it-shortcodes | smart-report |
 |:----------|:-----------:|:----------------------:|:-------------------:|
 | end-users |  unsafe     | safe                   | safe                |
 | nesting   |  yes        | no                     | yes                 |
@@ -130,7 +130,7 @@ Parses and renders Markdown with components to HTML.
 
 ```javascript
 // requires: npm install markdown-it
-import { markdownItEngine, toHTML } from 'markdown-components';
+import { markdownItEngine, toHTML } from 'smart-report';
 toHTML({
   input: '<MyComponent a={ x.y } b=123 c="hello"># This is an {x.y} heading</MyComponent>',
   components: {
@@ -169,7 +169,7 @@ Note that this function doesn't parse Markdown. Markdown parsing is currently do
 Returns a JSON object representing the parsed markdown.
 
 ```javascript
-import { Parser, showdownEngine } from 'markdown-components';
+import { Parser, showdownEngine } from 'smart-report';
 var parser = new Parser({markdownEngine:}); // use showdownjs
 var parsedElements = parser.parse(`<MyComponent a={ x.y.z } b=123 c="hello" d e=false >
 # User likes { user.color or "no" } color
@@ -245,7 +245,6 @@ Writes an element (e.g., the result from Parser.parse) to `stream`, and uses the
 renderer.write(elements, context, stream);
 var html = stream.toString();
 ```
-
 ### Components
 
 The components argument is an object where keys are tag names, and functions render HTML. This is a required argument of the `Renderer` constructor and the `toHTML` function.
@@ -329,7 +328,7 @@ value={ not (true) and 0 or x.y }
 A number of wrappers for existing Markdown interpreters are provided in `src/engines.js`. Each is a function which returns a rendering function. There are wrappers MarkdownIt, ShowdownJS and evilStreak's markdown. It's easy to write your own wrapper. See the source file.
 
 ```javascript
-import { toHTML, markdownItEngine } from 'markdown-components';
+import { toHTML, markdownItEngine } from 'smart-report';
 
 var html = toHTML({
   markdownEngine: markdownItEngine,
@@ -343,7 +342,7 @@ If you're concerned about efficiency, parse the input first, and cache the resul
 
 ### Example
 ```javascript
-var { markdownItEngine, Renderer, Parser } = require('markdown-components'); // "npm i markdown-it" to use markdownItEngine
+var { markdownItEngine, Renderer, Parser } = require('smart-report'); // "npm i markdown-it" to use markdownItEngine
 var streams = require('memory-streams'); // "npm i memory-streams"
 var renderer = new Renderer({
   componets: {
@@ -370,3 +369,8 @@ renderer.write(parsedElements,{ user: { favoriteColor: "blue" } }, stream);
 console.log(stream.toString());
 // <div class="box" style="background-color:blue"><i>Here is some</i> <b>markdown</b></div>
 ```
+
+
+### Documentation: TODO
+* Reducer class
+* Expressions

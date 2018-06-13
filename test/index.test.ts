@@ -1,11 +1,10 @@
 import { toHTML } from '../src';
 import { evilStreakMarkdownEngine, showdownEngine } from '../src/engines';
-import toBeType from 'jest-tobetype';
-expect.extend(toBeType);
+import { Props, RenderingFunction } from '../src/types';
 
 describe('toHTML', function() {
   const components = {
-    SimpleComponent: function({ __children, a }, render) {
+    SimpleComponent: function({ __children, a }: Props, render: RenderingFunction) {
       render('<div class="simple-component">');
       render(`a=${a}:${typeof a}\n`);
       render(__children);
@@ -14,7 +13,7 @@ describe('toHTML', function() {
   };
 
   it('should create HTML in one step with evilStreakEngine', function() {
-    var result = toHTML({
+    const result = toHTML({
       input:
         '<SimpleComponent a={ x.y }>\n' +
         '  <SimpleComponent a=123>\n' +
@@ -26,14 +25,14 @@ describe('toHTML', function() {
       context: { x: { y: 'hello' }}
     });
 
-    expect(result).toBeType('string');
+    expect(typeof result).toBe('string');
     expect(result).toEqual(expect.stringContaining('a=hello:string'));
     expect(result).toEqual(expect.stringContaining('a=123:number'));
     expect(result).toEqual(expect.stringContaining('<h1>Heading with interpolation - hello</h1>'));
   });
 
   it('should create HTML in one step with showdownEngine', function () {
-    var result = toHTML({
+    const result = toHTML({
       input:
         '<SimpleComponent a={ x.y }>\n' +
         '  <SimpleComponent a=123>\n' +
@@ -45,7 +44,7 @@ describe('toHTML', function() {
       context: { x: { y: 'hello' }}
     });
 
-    expect(result).toBeType('string');
+    expect(typeof result).toBe('string');
     expect(result).toEqual(expect.stringContaining('a=hello:string'));
     expect(result).toEqual(expect.stringContaining('a=123:number'));
     expect(result).toEqual(expect.stringContaining('<h1>Heading with interpolation - hello</h1>'));

@@ -3,29 +3,29 @@ import path from 'path';
 
 import Parser, { DEFAULT_INTERPOLATION_POINT, ATTRIBUTE_RE } from '../src/parser';
 import { markdownItEngine } from '../src/engines';
-import toBeType from 'jest-tobetype';
-expect.extend(toBeType);
+import { Interpolation, Element, ReducedAttribute } from '../src/types';
+import { isArray } from 'util';
 
 describe('Parser', function () {
-  context('constructor', function () {
+  describe('constructor', function () {
     it("should throw an error if markdownEngine isn't provided", function () {
       expect(()=>new Parser({})).toThrow();
     });
 
     it('should take an interpolationPoint argument which sets the string for splitting text on interpolations', function () {
       var parser = new Parser({ markdownEngine:()=>{}, interpolationPoint: 'abcdefg' });
-      expect(parser._interpolationPoint).toEqual('abcdefg');
+      expect(parser.interpolationPoint).toEqual('abcdefg');
     });
 
     it('should generate a random interpolationPoint if none is given', function () {
       var parser1 = new Parser({ markdownEngine:()=>{} });
       var parser2 = new Parser({ markdownEngine:()=>{} });
-      expect(parser1._interpolationPoint).toEqual(DEFAULT_INTERPOLATION_POINT);
-      expect(parser2._interpolationPoint).toEqual(DEFAULT_INTERPOLATION_POINT);
+      expect(parser1.interpolationPoint).toEqual(DEFAULT_INTERPOLATION_POINT);
+      expect(parser2.interpolationPoint).toEqual(DEFAULT_INTERPOLATION_POINT);
     });
   });
 
-  context('ATTRIBUTE_RE', function () {
+  describe('ATTRIBUTE_RE', function () {
     // ATTRIBUTE_RE sanity check
     it('should parse a string attribute', function () {
       expect(ATTRIBUTE_RE.exec('a="str"')).toBeDefined();
@@ -49,29 +49,29 @@ describe('Parser', function () {
     });
   });
 
-  context('#parse', function () {
-    var parse;
+  describe('#parse', function () {
+    var parse: (text: string | Buffer) => Element<Interpolation>[];
     beforeEach(function () {
       var parser = new Parser({ markdownEngine: markdownItEngine() });
-      parse = function (text) {
+      parse = function (text: string | Buffer) {
         return parser.parse(text);
       };
     });
 
     it('should parse a text block', function () {
-      var elements = parse('Some text');
-      expect(elements).toBeType('array');
+      var elements: any = parse('Some text');
+      expect(isArray(elements)).toBeTruthy();
       expect(elements).toHaveLength(1);
       expect(elements[0].type).toEqual('text');
       expect(elements[0].blocks).toEqual(['<p>Some text</p>']);
     });
 
     it('should parse recursive tags', function () {
-      var elements = parse('<Outer a={ x.y }>\n' +
+      var elements: any = parse('<Outer a={ x.y }>\n' +
         '  <Inner a=123>\n' +
         '  </Inner>\n' +
         '</Outer>');
-      expect(elements).toBeType('array');
+      expect(isArray(elements)).toBeTruthy();
       expect(elements).toHaveLength(1);
       expect(elements[0].type).toEqual('tag');
       expect(elements[0].name).toEqual('outer');
@@ -80,49 +80,51 @@ describe('Parser', function () {
     });
 
     it('should parse tags with no spaces', function () {
-      var elements = parse('<Outer><inner></inner></outer>');
-      expect(elements).toBeType('array');
+      var elements: any = parse('<Outer><inner></inner></outer>');
+      expect(isArray(elements)).toBeTruthy();
       expect(elements[0].name).toEqual('outer');
       expect(elements[0].children[0].name).toEqual('inner');
     });
 
     it('should correctly parse an interpolation followed by a tag', function () {
-      var elements = parse('<Outer>{test}<inner></inner></outer>');
-      expect(elements).toBeType('array');
+      var elements: any = parse('<Outer>{test}<inner></inner></outer>');
+      expect(isArray(elements)).toBeTruthy();
       expect(elements[0].name).toEqual('outer');
       expect(elements[0].children[0].type).toEqual('text');
       expect(elements[0].children[1].name).toEqual('inner');
     });
 
-    context('indentation', function () {
+    describe('indentation', function () {
       it('should treat indented markdown as a code block when indentedMarkdown=false', function () {
         var parser = new Parser({
           indentedMarkdown: false,
           markdownEngine: markdownItEngine()
         });
-        var elements = parser.parse(
+        var elements: any = parser.parse(
           '    # Heading\n' +
           '    Some text\n'
         );
 
         expect(elements[0]).toEqual({
           type: 'text',
-          blocks: ['<pre><code># Heading\nSome text\n</code></pre>']
+          blocks: ['<pre><code># Heading\nSome text\n</code></pre>'],
+          reduced: false
         });
       });
 
-      it('should parse markdown using the indentation of the first line if indentedMarkdown is true', function () {
+      it('should not dedent markdown outside of a tag block, even when indentedMarkdown is true', function () {
         var parser = new Parser({
           indentedMarkdown: true,
           markdownEngine: markdownItEngine()
         });
-        var elements = parser.parse(
+        var elements: any = parser.parse(
           '    # Heading\n' +
           '    Some text\n'
         );
         expect(elements[0]).toEqual({
           type: 'text',
-          blocks: ['<h1>Heading</h1>\n<p>Some text</p>']
+          blocks: ['<pre><code># Heading\nSome text\n</code></pre>'],
+          reduced: false
         });
       });
 
@@ -131,7 +133,7 @@ describe('Parser', function () {
           indentedMarkdown: true,
           markdownEngine: markdownItEngine()
         });
-        var elements = parser.parse(
+        var elements: any = parser.parse(
           '<mytag>\n' +
           '    # Heading\n' +
           '    Some text\n' +
@@ -140,27 +142,30 @@ describe('Parser', function () {
         expect(elements[0].children).toEqual([
           {
             type: 'text',
-            blocks: ['<h1>Heading</h1>\n<p>Some text</p>']
+            blocks: ['<h1>Heading</h1>\n<p>Some text</p>'],
+            reduced: false
           }
         ]);
       });
 
-      context('when invalid indentation is encountered,', function () {
+      describe('when invalid indentation is encountered,', function () {
 
         it('should detect invalid indentation (if indentedMarkdown is true)', function () {
-          var testFn;
+          var testFn: any;
           var parser = new Parser({
             indentedMarkdown: true,             // TRUE
             markdownEngine: markdownItEngine()
           });
 
-          var testFn = ()=>parser.parse(
+          testFn = ()=>parser.parse(
+            '<mytag>\n' +
             '     # Here is some indented markdown\n'+
             '     with some valid text\n' +
-            '   and some invalid dedented text\n'+
-            '     and some valid indented text'
+            '    and some invalid dedented text\n'+
+            '     and some valid indented text\n' +
+            '</mytag>'
           );
-          expect(testFn).toThrow(Error, 'Bad indentation in text block at 3:4');
+          expect(testFn).toThrow('Bad indentation in text block at 2:1');
         });
 
         it('should ignore indentation if indentedMarkdown is false', function () {
@@ -170,7 +175,7 @@ describe('Parser', function () {
             markdownEngine: markdownItEngine()
           });
 
-          var testFn = ()=>parser.parse(
+          testFn = ()=>parser.parse(
             '     # Here is some indented markdown\n'+
             '     with some valid text\n' +
             '   and some invalid dedented text'+
@@ -181,10 +186,10 @@ describe('Parser', function () {
       });
     });
 
-    context('interpolation', function () {
+    describe('interpolation', function () {
       it('should parse interpolation with an accessor', function () {
-        var elements = parse('{ someVar }');
-        expect(elements).toBeType('array');
+        var elements: any = parse('{ someVar }');
+        expect(isArray(elements)).toBeTruthy();
         expect(elements[0].type).toEqual('text');
         expect(elements[0].blocks).toEqual([
           '<p>',
@@ -194,8 +199,8 @@ describe('Parser', function () {
       });
 
       it('should parse interpolation with scalar', function () {
-        var elements = parse('{ "abc" }');
-        expect(elements).toBeType('array');
+        var elements: any = parse('{ "abc" }');
+        expect(isArray(elements)).toBeTruthy();
         expect(elements[0].type).toEqual('text');
         expect(elements[0].blocks).toEqual([
           '<p>',
@@ -205,8 +210,8 @@ describe('Parser', function () {
       });
 
       it('should parse interpolation with a function call', function () {
-        var elements = parse('{ foo("bar") }');
-        expect(elements).toBeType('array');
+        var elements: any = parse('{ foo("bar") }');
+        expect(isArray(elements)).toBeTruthy();
         expect(elements[0].type).toEqual('text');
         expect(elements[0].blocks).toEqual([
           '<p>',
@@ -219,8 +224,8 @@ describe('Parser', function () {
       });
 
       it('should parse interpolation with a logic expression', function () {
-        var elements = parse('{ foo("bar") and "hello" or x.y }');
-        expect(elements).toBeType('array');
+        const elements: any = parse('{ foo("bar") and "hello" or x.y }');
+        expect(isArray(elements)).toBeTruthy();
         expect(elements[0].type).toEqual('text');
         const funcallBlock = elements[0].blocks[1];
         expect(funcallBlock.expression).toEqual([
@@ -229,9 +234,20 @@ describe('Parser', function () {
           ['or',['scalar','hello'],['accessor','x.y']]
         ]);
       });
+
+      it('should parse interpolation in the midst of text', function () {
+        const elements: any = parse('hello { x.y } sailor');
+        expect(isArray(elements)).toBeTruthy();
+        expect(elements[0].type).toEqual('text');
+        expect(elements[0].blocks).toEqual([
+          '<p>hello ',
+          { type: 'interpolation', expression: ['accessor', 'x.y'] },
+          ' sailor</p>'
+        ]);
+      });
     });
 
-    context('with bad input', function () {
+    describe('with bad input', function () {
       it("should throw an error if closing tag isn't present", function () {
         expect(()=>parse('<outer><inner></inner>')).toThrow();
       });
@@ -254,15 +270,15 @@ describe('Parser', function () {
       });
     });
 
-    context('with complex input', function () {
-      var parseResult;
+    describe('with complex input', function () {
+      var parseResult: any;
       beforeEach(function () {
         const example = fs.readFileSync(path.join(__dirname, 'example.md'));
         parseResult = parse(example);
       });
 
       it('should return an array containing objects representing the parsed HTML tree', function () {
-        expect(parseResult).toBeType('array');
+        expect(isArray(parseResult)).toBeTruthy();
         expect(parseResult).toHaveLength(5);
       });
 
@@ -286,8 +302,8 @@ describe('Parser', function () {
         expect(parseResult[2].name).toEqual('selfclosing');
       });
 
-      context('while parsing a component with each type of attribute', function () {
-        let attrs;
+      describe('while parsing a component with each type of attribute', function () {
+        let attrs: any;
 
         beforeEach(function () {
           attrs = parseResult[4].attrs;
@@ -301,7 +317,7 @@ describe('Parser', function () {
         });
 
         it('should parse a number attribute correctly', function () {
-          expect(attrs.a).toBeType('number');
+          expect(typeof attrs.a).toBe('number');
           expect(attrs.a).toEqual(1);
         });
 
@@ -339,7 +355,8 @@ describe('Parser', function () {
             '<li>listElt1</li>\n' +
             '<li>listElt2</li>\n' +
             '</ul>'
-          ]
+          ],
+          reduced: false
         });
         expect(parseResult[4].children[1].type).toEqual('tag');
         expect(parseResult[4].children[1].name).toEqual('subcomponent');

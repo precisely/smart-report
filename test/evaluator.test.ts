@@ -51,7 +51,7 @@ describe('evaluator', function () {
       { lineNumber: 5, columnNumber: 7 },
       ['scalar', 2],
       ['funcall', 'mul', {}, ['scalar', 2], ['scalar', 3]]], {}, {})
-    ).toThrow(/Function not defined \(mul\).*5.*7/);
+    ).toThrow(/No function "mul" at.*5.*7/);
   });
 
   it('should evaluate and logic correctly', function () {

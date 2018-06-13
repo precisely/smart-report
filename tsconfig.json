@@ -1,0 +1,38 @@
+{
+  "compileOnSave": true,
+  "compilerOptions": {
+    "declaration": true,
+    "esModuleInterop": true,
+    "lib": [ "es2016" ],
+    "module": "umd",
+    "moduleResolution": "node",
+    "noImplicitAny": true,
+    "noImplicitReturns": true,
+    "outDir": "./lib",
+    "removeComments": true,
+    "strict": true,
+    "strictNullChecks": true,
+    "stripInternal": true,
+    "target": "es5"
+  },
+  "exclude": [
+    "node_modules",
+    "test"
+  ],
+  "outDir": "lib",
+  "rootDir": "src",
+  "paths": {
+    "src/*": [ "src/*" ],
+    "*": [ "*" ]
+  },
+  "jest": {
+    "transform": {
+      "^.+\\.ts?$": "./node_modules/ts-jest/preprocessor.js"
+    },
+    "testRegex": ".*\\.(test|spec)\\.(ts?)$",
+    "moduleFileExtensions": [
+      "ts",
+      "js"
+    ]
+  }
+}

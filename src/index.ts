@@ -1,6 +1,7 @@
 import streams from 'memory-streams';
 import Renderer from './renderer';
 import Parser from './parser';
+import { Component, Hash, Context } from './types';
 export * from './engines';
 export { Renderer, Parser };
 
@@ -15,17 +16,22 @@ export { Renderer, Parser };
  * @param {Function} options.defaultComponent - function ({__name, __children, ...props}, render)
  * @param {Function} options.interpolator - optional interpolation function (variables, expr)
  *                                      => value (default is standardInterpolator)
+ * @returns {string} HTML
+ */
+export function toHTML({ input, components = {}, markdownEngine = () => null, context = {} }:
+  {
+    input: string,
+    components?: Hash<Component>,
+    markdownEngine?: Function,
+    context?: Context
+  }) {
+  const parser = new Parser({ markdownEngine });
+  const parsedInput = parser.parse(input);
 
-  * @returns {string} HTML
-  */
-export function toHTML({ input, components, markdownEngine, context }) {
-  var parser = new Parser({ markdownEngine });
-  var parsedInput = parser.parse(input);
-
-  var renderer = new Renderer({
+  const renderer = new Renderer({
     components: components
   });
-  var stream = new streams.WritableStream();
+  const stream = new streams.WritableStream();
 
   renderer.write(parsedInput, context, stream);
   return stream.toString();

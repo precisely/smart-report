@@ -1,8 +1,17 @@
-export default class Cursor {
-  constructor(input, index=0) {
+import { Location } from './types';
+import { Stream } from 'stream';
+
+export default class Cursor implements Location {
+  constructor(input: Buffer | string, index: number = 0) {
     this._index = index;
-    this._buffer = new Buffer(input);
+    if (input instanceof Buffer) { // funky duplication because @types/node uses overloads
+      this._buffer = new Buffer(input);
+    } else {
+      this._buffer = new Buffer(input);
+    }
   }
+  private _index: number;
+  private readonly _buffer: Buffer;
 
   /**
    * index - current location of the cursor from the start
@@ -23,7 +32,7 @@ export default class Cursor {
    * @returns {Buffer} result
    * @memberof Cursor
    */
-  peek(length=1, offset=0) {
+  peek(length: number = 1, offset: number = 0) {
     return this._buffer.slice(this._index + offset, this._index + length + offset).toString();
   }
 
@@ -34,8 +43,8 @@ export default class Cursor {
    * @returns {boolean} success
    * @memberof Cursor
    */
-  test(re, offset=0) {
-    return !this.eof && re.test(this._buffer.slice(this._index + offset));
+  test(re: RegExp, offset: number = 0): boolean {
+    return !this.eof && re.test(this._buffer.slice(this._index + offset).toString());
   }
 
   /**
@@ -46,8 +55,8 @@ export default class Cursor {
    * @returns {Object?} match
    * @memberof Cursor
    */
-  capture(re, offset=0) {
-    var match = this.eof ? null : re.exec(this._buffer.slice(this._index + offset));
+  capture(re: RegExp, offset: number = 0): RegExpMatchArray | null {
+    var match = this.eof ? null : re.exec(this._buffer.slice(this._index + offset).toString());
     if (match) {
       this._index += match[0].length + match.index;
     }
@@ -60,7 +69,7 @@ export default class Cursor {
    * @param {number} [index=0]
    * @memberof Cursor
    */
-  seek(index=0) {
+  seek(index: number = 0): void {
     this._index = index;
   }
 
@@ -69,7 +78,7 @@ export default class Cursor {
    *
    * @memberof Cursor
    */
-  get eof() {
+  get eof(): boolean {
     return this._index >= this._buffer.length;
   }
 
@@ -78,7 +87,7 @@ export default class Cursor {
    *
    * @memberof Cursor
    */
-  next(n=1) {
+  next(n: number = 1): string | null {
     if (!this.eof) {
       var result = this._buffer.slice(this._index, this._index + n).toString();
       this._index += n;
@@ -88,30 +97,35 @@ export default class Cursor {
     }
   }
 
-  lineIndex(lineNumber) {
+  /**
+   * Returns the 0-based character index of a line
+   * @param lineNumber - the 1-based index of a line
+   * @returns {number} the 0-based character index of the first character on the line
+   */
+  indexFromLine(lineNumber: number): number {
     const lines = this._buffer.toString().split('\n');
-    const selectedLines = lines.slice(0, lineNumber-1);
+    const selectedLines = lines.slice(0, lineNumber - 1);
     var total = 0;
-    if (lineNumber<1 || lineNumber>lines.length) {
+    if (lineNumber < 1 || lineNumber > lines.length) {
       throw new Error(`Line number out of range ${lineNumber}`);
     }
-    selectedLines.forEach(line=> {
+    selectedLines.forEach(line => {
       total += line.length + 1;
     });
     return total;
   }
 
-  get lines() {
+  get lines(): string[] {
     var stringToCurrentIndex = this._buffer.slice(0, this._index).toString();
     return stringToCurrentIndex.split(/\r\n|\r|\n/);
   }
 
-  get lineNumber() {
+  get lineNumber(): number {
     return this.lines.length;
   }
 
-  get columnNumber() {
-    const lastLine = this.lines[this.lineNumber-1];
+  get columnNumber(): number {
+    const lastLine = this.lines[this.lineNumber - 1];
     return lastLine ? lastLine.length + 1 : 1;
   }
 }
