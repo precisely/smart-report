@@ -1,4 +1,4 @@
-[![CircleCI](https://circleci.com/gh/precisely/smart-report.svg?style=shield&circle-token=fbb8592a984a41740eebf952734f4776b86b0504)](https://circleci.com/gh/precisely/smart-report) [![Maintainability](https://api.codeclimate.com/v1/badges/6cf1a9deec6c8def6f8e/maintainability)](https://codeclimate.com/github/precisely/smart-report/maintainability) [![Test Coverage](https://api.codeclimate.com/v1/badges/6cf1a9deec6c8def6f8e/test_coverage)](https://codeclimate.com/github/precisely/smart-report/test_coverage)
+[![CircleCI](https://circleci.com/gh/precisely/smart-report.svg?style=shield&circle-token=fbb8592a984a41740eebf952734f4776b86b0504)](https://circleci.com/gh/precisely/smart-report) [![Maintainability](https://api.codeclimate.com/v1/badges/f09325a34dba427331e5/maintainability)](https://codeclimate.com/repos/5b2185778d7f9c02aa007c3c/maintainability) [![Test Coverage](https://api.codeclimate.com/v1/badges/f09325a34dba427331e5/test_coverage)](https://codeclimate.com/repos/5b2185778d7f9c02aa007c3c/test_coverage)
 
 # smart-report
 
