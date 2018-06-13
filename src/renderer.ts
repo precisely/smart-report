@@ -1,7 +1,7 @@
-import { isObject, isArray, isString, isNumber } from 'lodash';
+import { isArray, isString, isNumber } from 'lodash';
 import { evaluate } from './evaluator';
 import { Writable } from 'stream';
-import { CodeError } from './error';
+import { CodeError, ErrorType } from './error';
 import {
   Hash, InterpolationFunction, Component, Context,
   Element, TagElement, TextElement, WritableObject, RenderingFunction,
@@ -10,7 +10,7 @@ import {
 } from './types';
 
 const DefaultComponent: Component = (attrs: ComponentContext<Interpolation>, render: RenderingFunction) => {
-  throw new CodeError(`Unrecognized component: ${attrs.__name}`, )
+  throw new CodeError(`Unrecognized component: ${attrs.__name}`, {lineNumber:1, columnNumber:1}, ErrorType.UnknownTag);
 };
 /**
  * Renderer
@@ -64,20 +64,23 @@ export default class Renderer {
   }
 
   private writeElement(elt: Element<Interpolation>, context: Context, stream: Writable) {
-    const _this = this;
-    const render: RenderingFunction = function (obj: WritableObject, newContext?: Context) {
+    const render: RenderingFunction = (obj: WritableObject, newContext?: Context) => {
       newContext = newContext || context;
+
+      const isElementArray = (elt: any): elt is Element<Interpolation>[] => isArray(elt) && isElement(elt[0]);
       if (isString(obj) || isNumber(obj)) {
         stream.write(obj);
-      } else if (isArray(obj) || isElement(obj)) {
-        _this.write(obj, newContext, stream);
+      } else if (isElement(obj)) {
+        this.write(obj, newContext, stream);
+      } else if (isElementArray(obj)) {
+        obj.forEach(elt => render(elt, newContext));
       }
     };
 
     // render markdown
     if (isTextElement(elt)) {
       this.renderTextElement(elt, context, render);
-    } else if (isTagElement(elt)) {
+    } else if (isTagElement<Interpolation>(elt)) {
       // or a component:
       const component = this.componentFromElement(elt);
       // inject special vars into props

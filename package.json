@@ -9,7 +9,7 @@
   "license": "MIT",
   "scripts": {
     "prepare": "yarn run build",
-    "build": "tsc",
+    "build": "rm -frd lib && tsc",
     "lint": "tslint src/**/*.ts",
     "test": "jest",
     "test-with-coverage": "jest --collectCoverage",

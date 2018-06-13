@@ -4,7 +4,7 @@
     "declaration": true,
     "esModuleInterop": true,
     "lib": [ "es2016" ],
-    "module": "commonjs",
+    "module": "umd",
     "moduleResolution": "node",
     "noImplicitAny": true,
     "noImplicitReturns": true,
@@ -16,8 +16,11 @@
     "target": "es5"
   },
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "test"
   ],
+  "outDir": "lib",
+  "rootDir": "src",
   "paths": {
     "src/*": [ "src/*" ],
     "*": [ "*" ]

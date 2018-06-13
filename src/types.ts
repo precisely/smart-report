@@ -15,10 +15,10 @@ export interface Interpolation {
 export type Expression = any[];
 
 export type JSONValue = string | number | boolean | JSONObject | JSONArray;
-interface JSONObject {
+export interface JSONObject {
     [x: string]: JSONValue;
 }
-interface JSONArray extends Array<JSONValue> { }
+export interface JSONArray extends Array<JSONValue> { }
 export type Attribute<I extends Interpolation | void = void> = JSONValue | I | undefined | null;
 export type ReducedAttribute = JSONValue | undefined | null;
 
@@ -54,7 +54,7 @@ export type ComponentContext<I extends Interpolation | void = void> = {
 
 export type Props = ComponentContext<Interpolation>;
 
-export type WritableObject =  void | string | number | Element<Interpolation> | Element<Interpolation>[];
+export type WritableObject =  void | JSONValue | Element<Interpolation> | Element<Interpolation>[];
 
 export type RenderingFunction = (obj: WritableObject, newContext?: Context) => void;
 

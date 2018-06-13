@@ -9,7 +9,8 @@ export const enum ErrorType {
    InvalidArgument = 'InvalidArgument',
    UnexpectedOperator = 'UnexpectedOperator',
    ValueUndefined = 'ValueUndefined',
-   FunctionNotDefined = 'FunctionNotDefined'
+   FunctionNotDefined = 'FunctionNotDefined',
+   UnknownTag = 'UnknownTag'
 }
 
 export class CodeError extends Error {
