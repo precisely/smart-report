@@ -1,5 +1,10 @@
+import cases from 'jest-in-case';
 import Reducer from '../src/reducer';
-import { Element, ReducibleTagElement, Interpolation, Attribute, Context } from '../src/types';
+import { Hash, InterpolationFunction, ReducibleTextElement, ReducedAttribute } from '../src/types';
+import {
+  Element, ReducibleTagElement, Interpolation, Context,
+  TextElement, ReducibleTextElement
+} from '../src/types';
 
 describe('Reducer', function () {
   describe('#reduce', function () {
@@ -9,7 +14,7 @@ describe('Reducer', function () {
         type: 'tag',
         name: 'foo',
         rawName: 'Foo',
-        attrs: { a: 1, b: "bar" },
+        attrs: { a: 1, b: 'bar' },
         children: [],
         reduced: false
       };
@@ -18,6 +23,70 @@ describe('Reducer', function () {
         reduced: true
       };
       expect(reducer.reduce([tag], {})).toEqual([expectedTag]);
+    });
+
+    cases('should evaluate unreachable logic in analysis mode', ({op, rhs, lhs, result}) => {
+      const expression: any[] = [op, // tslint:disable-line
+        ['funcall', 'lhs', {}, ['scalar', lhs]],
+        ['funcall', 'rhs', {}, ['scalar', rhs]]
+      ];
+      let lhsCalled, rhsCalled;
+      const functions: Hash<InterpolationFunction> = {
+        lhs(c: Context, val: any) { // tslint:disable-line
+          lhsCalled = true;
+          return val;
+        },
+        rhs(c: Context, val: any) { // tslint:disable-line
+          rhsCalled = true;
+          return val;
+        }
+      };
+      const reducer = new Reducer({functions, analysisMode: true});
+      const textElement: ReducibleTextElement = {
+        type: 'text',
+        blocks: [{
+          type: 'interpolation',
+          expression: expression
+        }],
+        reduced: false
+      };
+      const evaluationResult = reducer.reduce([textElement], {});
+      expect(evaluationResult).toEqual([{
+        type: 'text',
+        blocks: [`${result}`],
+        reduced: true
+      }]);
+      expect(lhsCalled).toBeTruthy();
+      expect(rhsCalled).toBeTruthy();
+    }, [
+      { op: 'and', lhs: true, rhs: true, result: true},
+      { op: 'and', lhs: false, rhs: true, result: false},
+      { op: 'and', lhs: true, rhs: false, result: false},
+      { op: 'and', lhs: false, rhs: false, result: false},
+      { op: 'or', lhs: false, rhs: false, result: false},
+      { op: 'or', lhs: true, rhs: false, result: true},
+      { op: 'or', lhs: false, rhs: true, result: true},
+      { op: 'or', lhs: true, rhs: true, result: true}
+    ]);
+
+    it('should throw an error if an invalid argument is provided', function () {
+      const reducer = new Reducer({});
+      const tag: any = 'invalid element'; // tslint:disable-line
+      expect(() => reducer.reduce([tag], {})).toThrow();
+    });
+
+    it('should not process strings in text blocks', function () {
+      const reducer = new Reducer({});
+      const tag: ReducibleTextElement = {
+        type: 'text',
+        blocks: ['hello, ', 'sailor'],
+        reduced: false
+      };
+      expect(reducer.reduce([tag], {})).toEqual([{
+        type: 'text',
+        blocks: ['hello, ', 'sailor'],
+        reduced: true
+      }]);
     });
 
     it('should evaluate interpolated attributes', function () {
@@ -84,7 +153,7 @@ describe('Reducer', function () {
       ]);
       const reducer = new Reducer({
         components: {
-          IgnoreChildren(tag: ReducibleTagElement, context: Context) {
+          IgnoreChildren(elt: ReducibleTagElement, context: Context) {
             return [[], context];
           }
       }});
@@ -97,7 +166,7 @@ describe('Reducer', function () {
       const tag = makeTag('AddChildren', false, []);
       const reducer = new Reducer({
         components: {
-          AddChildren(tag: ReducibleTagElement, context: Context) {
+          AddChildren(elt: ReducibleTagElement, context: Context) {
             const newChildren = [makeTag('Bar', false, []), makeTag('Baz', false, [])];
             return [newChildren, context];
           }
@@ -111,5 +180,48 @@ describe('Reducer', function () {
         ])
       ]);
     });
+
+    it('should html encode interpolated strings', function () {
+      const reducer = new Reducer({});
+      const textElement: TextElement<Interpolation> = {
+        type: 'text',
+        blocks: [{
+          type: 'interpolation',
+          expression: ['scalar', '<script>nastyExploit();</script>']
+        }],
+        reduced: false
+      };
+      expect(reducer.reduce([textElement], {})).toEqual([
+        {
+          type: 'text',
+          blocks: [ '&lt;script&gt;nastyExploit();&lt;/script&gt;'],
+          reduced: true
+        }
+      ]);
+    });
+
+    cases('should stringify any other object that appears in an interpolation, except for nulls', ({value, blocks}) => {
+      const reducer = new Reducer({});
+      const textElement: TextElement<Interpolation> = {
+        type: 'text',
+        blocks: [{
+          type: 'interpolation',
+          expression: ['scalar', value ]
+        }],
+        reduced: false
+      };
+      expect(reducer.reduce([textElement], {})).toEqual([{
+        type: 'text',
+        blocks: blocks,
+        reduced: true
+      }]);
+
+    }, [
+      { value: true, blocks: ['true'] },
+      { value: 123, blocks: ['123'] },
+      { value: [123, 234], blocks: ['123,234'] },
+      { value: { a: 1, b: 'foo', c: {d: 1}}, blocks: ['[object Object]'] },
+      { value: null, blocks: [] }
+    ]);
   });
 });
