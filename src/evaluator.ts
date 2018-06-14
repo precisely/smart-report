@@ -12,11 +12,19 @@ export const enum OpType {
   accessor = 'accessor'
 }
 
-function getValue(accessor: string[], context: Context): Attribute<void> {
-  if (accessor.length === 0) {
+/**
+ * Retrieve nested value from object
+ * E.g., getValue(['a', 'b'], { a: { b: 'foo' }}) // => foo
+ * Returns undefined for invalid path.
+ *
+ * @param path
+ * @param context
+ */
+function getValue(path: string[], context: Context): Attribute<void> {
+  if (path.length === 0) {
     return context;
   } else {
-    const [key, ...rest] = accessor;
+    const [key, ...rest] = path;
     return getValue(rest, context ? context[key] : undefined);
   }
 }
@@ -31,15 +39,16 @@ function evaluateFuncall(
   analysisMode: boolean = true
 ): Attribute {
   const [name, location, ...fnargs] = args;
-  const accessor = name.split('.');
-  const interpolationFunction = functions[accessor[0]]
-            || analysisMode ? (context: Context, ...args: any[]) => null : null; // tslint:disable-line
+  const interpolationFunction =
+    functions[name] ? functions[name] :
+      analysisMode ? (context: Context, ...args: any[]) => undefined // tslint:disable-line
+      : null;
 
-  if (!interpolationFunction || accessor.length !== 1) {
-    throw new CodeError(`No function "${accessor.join('.')}"`, location, ErrorType.FunctionNotDefined);
+  if (!interpolationFunction) {
+    throw new CodeError(`No function "${name}"`, location, ErrorType.FunctionNotDefined);
   }
 
-  const evaluatedArgs = (<EvalArg[]> fnargs).map(arg => evaluate(arg, context, functions));
+  const evaluatedArgs = (<EvalArg[]> fnargs).map(arg => evaluate(arg, context, functions, true));
 
   return interpolationFunction(context, ...evaluatedArgs);
 }
@@ -50,12 +59,7 @@ const evaluators: Hash<EvaluationFunction> = {
     return getValue(accessor, context);
   },
   funcall(args: EvalArg[], context: Context, functions: Hash<InterpolationFunction>): Attribute {
-    const [name, location, ...fnargs] = args;
-    const functionSymbol = name.split('.');
-    const func: InterpolationFunction = getFunction(functionSymbol, functions, location);
-    const evaluatedArgs = (<EvalArg[]> fnargs).map(arg => evaluate(arg, context, functions));
-
-    return func(context, ...evaluatedArgs);
+    return evaluateFuncall(args, context, functions, false);
   },
   and(args: EvalArg[], context: Context, functions: Hash<InterpolationFunction>) {
     const [lhs, rhs] = args;
@@ -94,7 +98,7 @@ const analyticEvaluators = {
     return lhsVal || rhsVal;
   },
   funcall(args: EvalArg[], context: Context, functions: Hash<InterpolationFunction>): Attribute {
-    return evaluateFuncall(fn, args, context);
+    return evaluateFuncall(args, context, functions, true);
   }
 };
 
