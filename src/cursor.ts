@@ -83,7 +83,7 @@ export default class Cursor implements Location {
   }
 
   /**
-   * next - creates and returns a new string object of length n at the current index
+   * next - consumes n characters, returning a new string object
    *
    * @memberof Cursor
    */

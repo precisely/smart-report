@@ -9,17 +9,17 @@ import { isArray } from 'util';
 describe('Parser', function () {
   describe('constructor', function () {
     it("should throw an error if markdownEngine isn't provided", function () {
-      expect(()=>new Parser({})).toThrow();
+      expect(() => new Parser({})).toThrow();
     });
 
-    it('should take an interpolationPoint argument which sets the string for splitting text on interpolations', function () {
-      var parser = new Parser({ markdownEngine:()=>{}, interpolationPoint: 'abcdefg' });
+    it('should take an interpolationPoint argument which sets the string for splitting text on interpolations', function () { // tslint:disable-line
+      var parser = new Parser({ markdownEngine: () => null, interpolationPoint: 'abcdefg' });
       expect(parser.interpolationPoint).toEqual('abcdefg');
     });
 
     it('should generate a random interpolationPoint if none is given', function () {
-      var parser1 = new Parser({ markdownEngine:()=>{} });
-      var parser2 = new Parser({ markdownEngine:()=>{} });
+      var parser1 = new Parser({ markdownEngine: () => null });
+      var parser2 = new Parser({ markdownEngine: () => null });
       expect(parser1.interpolationPoint).toEqual(DEFAULT_INTERPOLATION_POINT);
       expect(parser2.interpolationPoint).toEqual(DEFAULT_INTERPOLATION_POINT);
     });
@@ -59,7 +59,7 @@ describe('Parser', function () {
     });
 
     it('should parse a text block', function () {
-      var elements: any = parse('Some text');
+      var elements: any = parse('Some text'); // tslint:disable-line
       expect(isArray(elements)).toBeTruthy();
       expect(elements).toHaveLength(1);
       expect(elements[0].type).toEqual('text');
@@ -67,7 +67,7 @@ describe('Parser', function () {
     });
 
     it('should parse recursive tags', function () {
-      var elements: any = parse('<Outer a={ x.y }>\n' +
+      var elements: any = parse('<Outer a={ x.y }>\n' + // tslint:disable-line
         '  <Inner a=123>\n' +
         '  </Inner>\n' +
         '</Outer>');
@@ -80,14 +80,14 @@ describe('Parser', function () {
     });
 
     it('should parse tags with no spaces', function () {
-      var elements: any = parse('<Outer><inner></inner></outer>');
+      var elements: any = parse('<Outer><inner></inner></outer>'); // tslint:disable-line
       expect(isArray(elements)).toBeTruthy();
       expect(elements[0].name).toEqual('outer');
       expect(elements[0].children[0].name).toEqual('inner');
     });
 
     it('should correctly parse an interpolation followed by a tag', function () {
-      var elements: any = parse('<Outer>{test}<inner></inner></outer>');
+      var elements: any = parse('<Outer>{test}<inner></inner></outer>'); // tslint:disable-line
       expect(isArray(elements)).toBeTruthy();
       expect(elements[0].name).toEqual('outer');
       expect(elements[0].children[0].type).toEqual('text');
@@ -100,7 +100,7 @@ describe('Parser', function () {
           indentedMarkdown: false,
           markdownEngine: markdownItEngine()
         });
-        var elements: any = parser.parse(
+        var elements: any = parser.parse( // tslint:disable-line
           '    # Heading\n' +
           '    Some text\n'
         );
@@ -117,7 +117,7 @@ describe('Parser', function () {
           indentedMarkdown: true,
           markdownEngine: markdownItEngine()
         });
-        var elements: any = parser.parse(
+        var elements: any = parser.parse( // tslint:disable-line
           '    # Heading\n' +
           '    Some text\n'
         );
@@ -133,7 +133,7 @@ describe('Parser', function () {
           indentedMarkdown: true,
           markdownEngine: markdownItEngine()
         });
-        var elements: any = parser.parse(
+        var elements: any = parser.parse( // tslint:disable-line
           '<mytag>\n' +
           '    # Heading\n' +
           '    Some text\n' +
@@ -151,17 +151,17 @@ describe('Parser', function () {
       describe('when invalid indentation is encountered,', function () {
 
         it('should detect invalid indentation (if indentedMarkdown is true)', function () {
-          var testFn: any;
+          var testFn: any; // tslint:disable-line
           var parser = new Parser({
             indentedMarkdown: true,             // TRUE
             markdownEngine: markdownItEngine()
           });
 
-          testFn = ()=>parser.parse(
+          testFn = () => parser.parse(
             '<mytag>\n' +
-            '     # Here is some indented markdown\n'+
+            '     # Here is some indented markdown\n' +
             '     with some valid text\n' +
-            '    and some invalid dedented text\n'+
+            '    and some invalid dedented text\n' +
             '     and some valid indented text\n' +
             '</mytag>'
           );
@@ -175,10 +175,10 @@ describe('Parser', function () {
             markdownEngine: markdownItEngine()
           });
 
-          testFn = ()=>parser.parse(
-            '     # Here is some indented markdown\n'+
+          testFn = () => parser.parse(
+            '     # Here is some indented markdown\n' +
             '     with some valid text\n' +
-            '   and some invalid dedented text'+
+            '   and some invalid dedented text' +
             '     and some valid indented text'
           );
           expect(testFn).not.toThrow();
@@ -188,7 +188,7 @@ describe('Parser', function () {
 
     describe('interpolation', function () {
       it('should parse interpolation with an accessor', function () {
-        var elements: any = parse('{ someVar }');
+        var elements: any = parse('{ someVar }'); // tslint:disable-line
         expect(isArray(elements)).toBeTruthy();
         expect(elements[0].type).toEqual('text');
         expect(elements[0].blocks).toEqual([
@@ -199,7 +199,7 @@ describe('Parser', function () {
       });
 
       it('should parse interpolation with scalar', function () {
-        var elements: any = parse('{ "abc" }');
+        var elements: any = parse('{ "abc" }'); // tslint:disable-line
         expect(isArray(elements)).toBeTruthy();
         expect(elements[0].type).toEqual('text');
         expect(elements[0].blocks).toEqual([
@@ -210,7 +210,7 @@ describe('Parser', function () {
       });
 
       it('should parse interpolation with a function call', function () {
-        var elements: any = parse('{ foo("bar") }');
+        var elements: any = parse('{ foo("bar") }'); // tslint:disable-line
         expect(isArray(elements)).toBeTruthy();
         expect(elements[0].type).toEqual('text');
         expect(elements[0].blocks).toEqual([
@@ -224,19 +224,19 @@ describe('Parser', function () {
       });
 
       it('should parse interpolation with a logic expression', function () {
-        const elements: any = parse('{ foo("bar") and "hello" or x.y }');
+        const elements: any = parse('{ foo("bar") and "hello" or x.y }'); // tslint:disable-line
         expect(isArray(elements)).toBeTruthy();
         expect(elements[0].type).toEqual('text');
         const funcallBlock = elements[0].blocks[1];
         expect(funcallBlock.expression).toEqual([
           'and',
-          ['funcall', 'foo', { lineNumber: 1, columnNumber: 7 }, ['scalar','bar']],
-          ['or',['scalar','hello'],['accessor','x.y']]
+          ['funcall', 'foo', { lineNumber: 1, columnNumber: 7 }, ['scalar', 'bar']],
+          ['or', ['scalar', 'hello'], ['accessor', 'x.y']]
         ]);
       });
 
       it('should parse interpolation in the midst of text', function () {
-        const elements: any = parse('hello { x.y } sailor');
+        const elements: any = parse('hello { x.y } sailor'); // tslint:disable-line
         expect(isArray(elements)).toBeTruthy();
         expect(elements[0].type).toEqual('text');
         expect(elements[0].blocks).toEqual([
@@ -245,33 +245,46 @@ describe('Parser', function () {
           ' sailor</p>'
         ]);
       });
+
+      it('should parse an interpolation group', function () {
+        const elements: any = parse('hello { (x and y) or z } sailor'); // tslint:disable-line
+        expect(isArray(elements)).toBeTruthy();
+        expect(elements[0].type).toEqual('text');
+        expect(elements[0].blocks).toEqual([
+          '<p>hello ',
+          { type: 'interpolation',
+            expression: ['or', ['and', ['accessor', 'x'], ['accessor', 'y']], ['accessor', 'z']]
+          },
+          ' sailor</p>'
+        ]);
+      });
     });
 
     describe('with bad input', function () {
       it("should throw an error if closing tag isn't present", function () {
-        expect(()=>parse('<outer><inner></inner>')).toThrow();
+        expect(() => parse('<outer><inner></inner>')).toThrow();
       });
 
       it('should throw an error if invalid closing tag is encountered', function () {
-        expect(()=>parse('<outer><inner></outer>')).toThrow();
+        expect(() => parse('<outer><inner></outer>')).toThrow();
       });
 
       it('should throw an error if an invalid attribute is given', function () {
-        expect(()=>parse('<tag a=1 b=[123]></tag>')).toThrow();
-        expect(()=>parse("<tag a=1 b='123'></tag>")).toThrow();
+        expect(() => parse('<tag a=1 b=[123]></tag>')).toThrow();
+        expect(() => parse("<tag a=1 b='123'></tag>")).toThrow();
       });
 
       it('should throw an error if an attribute interpolation is unclosed', function () {
-        expect(()=>parse('<tag a={></tag>')).toThrow();
+        expect(() => parse('<tag a={></tag>')).toThrow();
       });
 
       it('should throw an error if the tag end brace is missing', function () {
-        expect(()=>parse('<tag</tag>')).toThrow();
+        expect(() => parse('<tag</tag>')).toThrow();
       });
     });
 
     describe('with complex input', function () {
-      var parseResult: any;
+      var parseResult: any; // tslint:disable-line
       beforeEach(function () {
         const example = fs.readFileSync(path.join(__dirname, 'example.md'));
         parseResult = parse(example);
@@ -303,7 +316,7 @@ describe('Parser', function () {
       });
 
       describe('while parsing a component with each type of attribute', function () {
-        let attrs: any;
+        let attrs: any; // tslint:disable-line
 
         beforeEach(function () {
           attrs = parseResult[4].attrs;
@@ -351,7 +364,7 @@ describe('Parser', function () {
           blocks: [
             '<p>Text inside MyComponent\n' +
             'With escaped chars: { &lt; } &gt;</p>\n' +
-            '<ul>\n'+
+            '<ul>\n' +
             '<li>listElt1</li>\n' +
             '<li>listElt2</li>\n' +
             '</ul>'
