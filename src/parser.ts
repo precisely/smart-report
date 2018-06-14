@@ -30,7 +30,7 @@ export default class Parser {
   }
 
   public get interpolationPoint() { return this._interpolationPoint; }
-  public get markdownEnginer() { return this._markdownEngine; }
+  public get markdownEngine() { return this._markdownEngine; }
   public get indentedMarkdown() { return this._indentedMarkdown; }
 
   private cursor: Cursor;

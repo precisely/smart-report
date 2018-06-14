@@ -24,9 +24,10 @@ const DefaultReducer: ReducerFunction = (elt: TagElement<Interpolation>, context
  * interpolator uses the expression inside {} to extract a value from variables
  */
 export default class Reducer {
-  constructor({ components = {}, functions = {}}: {
+  constructor({ components = {}, functions = {}, exhaustiveEval = false}: {
     components?: Hash<ReducerFunction>,
-    functions?: Hash<InterpolationFunction>
+    functions?: Hash<InterpolationFunction>,
+    exhaustiveEval?: boolean
   }) {
     this._reducers = {};
     for (const key in components) {
@@ -35,10 +36,12 @@ export default class Reducer {
       }
     }
     this._functions = functions;
+    this._exhaustiveEval = exhaustiveEval;
   }
   private _reducers: Hash<ReducerFunction>;
   private _functions: Hash<InterpolationFunction>;
-
+  private _exhaustiveEval: boolean;
+  
   /**
    * Transforms a parse tree, removing interpolations and reducing the
    * tree using reducer functions

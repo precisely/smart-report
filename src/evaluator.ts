@@ -1,7 +1,6 @@
 
 import { CodeError, ErrorType } from './error';
-import { Context, Hash, InterpolationFunction, Attribute, Interpolation, Expression, Location } from './types';
-import { Utf8AsciiBinaryEncoding } from 'crypto';
+import { Context, Hash, InterpolationFunction, Attribute, Expression, Location } from './types';
 
 export const enum OpType {
   funcall = 'funcall',
@@ -22,20 +21,28 @@ function getValue(accessor: string[], context: Context): Attribute<void> {
   }
 }
 
-function getFunction(
-  accessor: string[],
-  functions: Hash<InterpolationFunction>,
-  location: Location
-): InterpolationFunction {
-  const result = functions[accessor[0]];
-  if (!result || accessor.length !== 1) {
-    throw new CodeError(`No function "${accessor.join('.')}"`, location, ErrorType.FunctionNotDefined);
-  }
-  return result;
-}
-
 type EvalArg = any; // tslint:disable-line
 type EvaluationFunction = (args: EvalArg[], context: Context, functions: Hash<InterpolationFunction>) => Attribute; //
+
+function evaluateFuncall(
+  args: EvalArg[],
+  context: Context,
+  functions: Hash<InterpolationFunction>,
+  analysisMode: boolean = true
+): Attribute {
+  const [name, location, ...fnargs] = args;
+  const accessor = name.split('.');
+  const interpolationFunction = functions[accessor[0]]
+            || analysisMode ? (context: Context, ...args: any[]) => null : null; // tslint:disable-line
+
+  if (!interpolationFunction || accessor.length !== 1) {
+    throw new CodeError(`No function "${accessor.join('.')}"`, location, ErrorType.FunctionNotDefined);
+  }
+
+  const evaluatedArgs = (<EvalArg[]> fnargs).map(arg => evaluate(arg, context, functions));
+
+  return interpolationFunction(context, ...evaluatedArgs);
+}
 
 const evaluators: Hash<EvaluationFunction> = {
   accessor(args: string[], context: Context): Attribute {
@@ -47,7 +54,6 @@ const evaluators: Hash<EvaluationFunction> = {
     const functionSymbol = name.split('.');
     const func: InterpolationFunction = getFunction(functionSymbol, functions, location);
     const evaluatedArgs = (<EvalArg[]> fnargs).map(arg => evaluate(arg, context, functions));
-    // console.log('funcall(%j, %j, %j) => %s(...%j)', expression, context, functions, name, evaluatedArgs);
 
     return func(context, ...evaluatedArgs);
   },
@@ -73,21 +79,43 @@ const evaluators: Hash<EvaluationFunction> = {
   }
 };
 
+const analyticEvaluators = {
+  ...evaluators,
+  and(args: EvalArg[], context: Context, functions: Hash<InterpolationFunction>) {
+    const [lhs, rhs] = args;
+    const lhsVal = evaluate(lhs, context, functions);
+    const rhsVal = evaluate(rhs, context, functions);
+    return lhsVal && rhsVal;
+  },
+  or(args: EvalArg[], context: Context, functions: Hash<InterpolationFunction>) {
+    const [lhs, rhs] = args;
+    const lhsVal = evaluate(lhs, context, functions);
+    const rhsVal = evaluate(rhs, context, functions);
+    return lhsVal || rhsVal;
+  },
+  funcall(args: EvalArg[], context: Context, functions: Hash<InterpolationFunction>): Attribute {
+    return evaluateFuncall(fn, args, context);
+  }
+};
+
 /**
  * Evaluates an interpolation expression
  *
  * @param {[string, any[]]} expression - [op, args]
  * @param {[key: string]: any} context
  * @param {[key: string]: (context, ...args) => any} functions
+ * @param {boolean} analysis - if true, all expressions are guaranteed to be evaluated, even
+ *                                in branches of
  */
 export function evaluate(
   expression: Expression,
   context: Context = {},
-  functions: Hash<InterpolationFunction> = {}
+  functions: Hash<InterpolationFunction> = {},
+  analysis: boolean = false
 ): Attribute {
   const [op, ...args] = expression;
   // console.log('evaluate(%j, %j, %j)', expression, context, functions);
-  const evaluator = evaluators[op];
+  const evaluator = (analysis ? analyticEvaluators : evaluators)[op];
   if (evaluator) {
     return evaluator(args, context, functions);
   } else {
