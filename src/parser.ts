@@ -4,8 +4,6 @@ import { isFunction } from 'lodash';
 import { CodeError, ErrorType } from './error';
 import { OpType } from './evaluator';
 import { Element, Interpolation, TagElement, TextElement, Attribute, Hash, Expression } from './types';
-import { isNumber } from 'util';
-import { start } from 'repl';
 
 export const DEFAULT_INTERPOLATION_POINT = '=interpolation-point=';
 export const ATTRIBUTE_RE = /^\s*([^/=<>"'\s]+)\s*(?:=\s*((?:"([^"]*)")|([-+]?[0-9]*\.?[0-9]+)|((?=\{))|(true|false)))?/; // tslint:disable-line
@@ -30,7 +28,7 @@ export default class Parser {
   }
 
   public get interpolationPoint() { return this._interpolationPoint; }
-  public get markdownEnginer() { return this._markdownEngine; }
+  public get markdownEngine() { return this._markdownEngine; }
   public get indentedMarkdown() { return this._indentedMarkdown; }
 
   private cursor: Cursor;
@@ -366,7 +364,9 @@ export default class Parser {
   }
 
   captureInterpolationGroup(): Expression | null {
-    return this.captureInterpolationExpression(/^\s*\)/);
+    const result = this.captureInterpolationExpression(/^\s*(?=\))/);
+    this.cursor.capture(/^\)/);
+    return result;
   }
 
   captureInterpolationFunctionArguments(symbol: string) {

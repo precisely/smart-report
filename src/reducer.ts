@@ -6,8 +6,7 @@ import {
   isInterpolation, isTagElement, isTextElement, Attribute,
   ReducerFunction
 } from './types';
-import { isString, isArray } from 'util';
-import { isElement } from './types';
+import { isString, isNullOrUndefined } from 'util';
 
 // ReducerFunction takes a tag element and context and
 // returns a modified list of child nodes and a modified context
@@ -24,20 +23,24 @@ const DefaultReducer: ReducerFunction = (elt: TagElement<Interpolation>, context
  * interpolator uses the expression inside {} to extract a value from variables
  */
 export default class Reducer {
-  constructor({ components = {}, functions = {}}: {
+  constructor({ components = {}, functions = {}, analysisMode = false}: {
     components?: Hash<ReducerFunction>,
-    functions?: Hash<InterpolationFunction>
+    functions?: Hash<InterpolationFunction>,
+    analysisMode?: boolean
   }) {
     this._reducers = {};
     for (const key in components) {
+      /* istanbul ignore next */
       if (components.hasOwnProperty(key)) {
         this._reducers[key.toLowerCase()] = components[key];
       }
     }
     this._functions = functions;
+    this._analysisMode = analysisMode;
   }
   private _reducers: Hash<ReducerFunction>;
   private _functions: Hash<InterpolationFunction>;
+  private _analysisMode: boolean;
 
   /**
    * Transforms a parse tree, removing interpolations and reducing the
@@ -78,14 +81,11 @@ export default class Reducer {
     const interpolatedAttributes = this.interpolateAttributes(elt.attrs, context);
     const reducer = this.reducerFromElement(elt);
     const eltWithReducedAttributes = {... elt, attrs: interpolatedAttributes};
-    let  children;
-    if (reducer) { // reduce the children and the context
-      [children, context] = reducer(eltWithReducedAttributes, context);
-    } else {
-      children = elt.children;
-    }
+    const [children, reducedContext] = reducer(eltWithReducedAttributes, context);
+
     const reducedChildren = children.map(child => {
-      return child ? this.reduceSingleElement(child, context) : null;
+      /* istanbul ignore next */
+      return child ? this.reduceSingleElement(child, reducedContext) : null;
     }).filter(c => c) as Element[];
     const reducedTag: TagElement = {
       ...eltWithReducedAttributes,
@@ -94,13 +94,13 @@ export default class Reducer {
       children: reducedChildren
     };
 
-    return [reducedTag, context];
+    return [reducedTag, reducedContext];
   }
 
   private reduceTextElement(textElement: TextElement<Interpolation>, context: Context): TextElement {
     const reducedBlocks = textElement.blocks.map(block => {
       if (isInterpolation(block)) {
-        const value = evaluate(block.expression, context, this._functions);
+        const value = evaluate(block.expression, context, this._functions, this._analysisMode);
         return stringified(value);
       } else {
         return block;
@@ -116,10 +116,11 @@ export default class Reducer {
   private interpolateAttributes(attrs: Hash<Attribute<Interpolation>>, context: Context): Hash<any> { // tslint:disable-line
     const props: Hash<Attribute> = {};
     for (const key in attrs) {
+      /* istanbul ignore next */
       if (attrs.hasOwnProperty(key)) {
         const value = attrs[key];
         if (isInterpolation(value)) {
-          props[key] = evaluate(value.expression, context, this._functions);
+          props[key] = evaluate(value.expression, context, this._functions, this._analysisMode);
         } else {
           props[key] = value;
         }
@@ -132,7 +133,7 @@ export default class Reducer {
 function stringified(o: any): string | null { // tslint:disable-line
   if (isString(o)) {
     return htmlEncode(o);
-  } else if (o) {
+  } else if (!isNullOrUndefined(o)) {
     return o.toString();
   }
   return null;
