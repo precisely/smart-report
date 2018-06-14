@@ -1,7 +1,7 @@
 import cases from 'jest-in-case';
 import Reducer from '../src/reducer';
-import { Hash, InterpolationFunction, ReducibleTextElement, ReducedAttribute } from '../src/types';
 import {
+  Hash, InterpolationFunction,
   Element, ReducibleTagElement, Interpolation, Context,
   TextElement, ReducibleTextElement
 } from '../src/types';
