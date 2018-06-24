@@ -62,12 +62,13 @@ export type RenderingFunction = (obj: WritableObject, newContext?: Context) => v
 
 export type Component = (props: Props, render: RenderingFunction) => void;
 
+export type ReducibleElement = Element<Interpolation>;
 export type ReducibleTagElement = TagElement<Interpolation>;
 export type ReducibleTextElement = TextElement<Interpolation>;
 export type ReducerFunction = (
   tagElt: ReducibleTagElement,
   context: Context
-) => [Element<Interpolation>[], Context];
+) => [ReducibleElement[], Context];
 
 export function isTagElement<T extends Interpolation | void>(o: (TagElement<T> | any)): o is TagElement<T> { // tslint:disable-line
   return isElement(o) && o.type === 'tag';
