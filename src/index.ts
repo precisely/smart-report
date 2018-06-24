@@ -1,12 +1,13 @@
 import streams from 'memory-streams';
 import Renderer from './renderer';
 import Parser from './parser';
+import Reducer from './reducer';
 import {
   Component, Hash, Context
 } from './types';
 export * from './types';
 export * from './engines';
-export { Renderer, Parser };
+export { Renderer, Parser, Reducer };
 
 /**
  * toHTML - Combines parsing and rendering in one easy step
