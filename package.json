@@ -2,7 +2,7 @@
   "name": "smart-report",
   "version": "1.0.1",
   "description": "Smart ",
-  "main": "lib/index.js",
+  "main": "lib/index",
   "private": true,
   "browser": "lib/index.min.js",
   "repository": "https://github.com/precisely/smart-report",
