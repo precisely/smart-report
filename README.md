@@ -245,9 +245,10 @@ Writes an element (e.g., the result from Parser.parse) to `stream`, and uses the
 renderer.write(elements, context, stream);
 var html = stream.toString();
 ```
-### Components
 
-The components argument is an object where keys are tag names, and functions render HTML. This is a required argument of the `Renderer` constructor and the `toHTML` function.
+### Renderer Components
+
+The components argument is an object where keys are tag names, and functions render HTML. This is a required argument of the `Renderer` constructors and the `toHTML` function.
 
 For example:
 
@@ -371,6 +372,27 @@ console.log(stream.toString());
 ```
 
 
-### Documentation: TODO
-* Reducer class
-* Expressions
+### Reducer
+The Reducer class reduces a parse tree to a minimal context-independent form. The `Reducer.reduce` function takes a parse tree and a context, and returns a minimized parse tree which can be rendered without a context. This is useful, for personalizing and removing other parts of a smart report on the server before sending it to a client for rendering.
+
+#### constructor
+```javascript
+const reducer = new Reducer({
+  components: {
+    Foo(elt, context) {
+      // the <Foo> tag selects children which have attr foo==true
+      const reducedChildren = elt.children.filter(child => child.attrs.foo);
+      return [reducedChildren, context]; // the context is returned unchanged
+    }
+  }
+})
+```
+
+#### #reduce
+```javascript
+const parser = new Parser();
+const parseTree = parser.parse('some text');
+const context = {};
+reducer.reduce(parseTree, context);
+```
+
