@@ -11,7 +11,7 @@ export const ATTRIBUTE_RE = /^\s*([^/=<>"'\s]+)\s*(?:=\s*((?:"([^"]*)")|([-+]?[0
 type CaptureFn = () => Element<Interpolation> | null;
 
 export default class Parser {
-  constructor({ markdownEngine = null, interpolationPoint = null, indentedMarkdown = false }:
+  constructor({ markdownEngine = null, interpolationPoint = null, indentedMarkdown = true }:
     {
       markdownEngine?: Function,
       interpolationPoint?: string,

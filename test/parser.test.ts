@@ -8,6 +8,11 @@ import { isArray } from 'util';
 
 describe('Parser', function () {
   describe('constructor', function () {
+    it('should set indentedMarkdown by default', function () {
+      const parser = new Parser({ markdownEngine: () => null});
+      expect(parser.indentedMarkdown).toBeTruthy();
+    });
+
     it("should throw an error if markdownEngine isn't provided", function () {
       expect(() => new Parser({})).toThrow();
     });
