@@ -4,7 +4,8 @@ import {
   Hash, Interpolation, InterpolationFunction, Context,
   Element, TagElement, TextElement,
   isInterpolation, isTagElement, isTextElement, Attribute,
-  ReducerFunction
+  ReducerFunction,
+  ReducibleElement
 } from './types';
 import { isString, isNullOrUndefined } from 'util';
 
@@ -80,15 +81,29 @@ export default class Reducer {
   private reduceTagElement(elt: TagElement<Interpolation>, context: Context): [TagElement, Context] {
     const interpolatedAttributes = this.interpolateAttributes(elt.attrs, context);
     const reducer = this.reducerFromElement(elt);
-    const eltWithReducedAttributes = {... elt, attrs: interpolatedAttributes};
-    const [children, reducedContext] = reducer(eltWithReducedAttributes, context);
+    const childrenWithInterpolatedAttributes = elt.children.map(child => {
+      if (isTagElement(child)) {
+        return {
+          ...child,
+          attrs: this.interpolateAttributes(child.attrs, context)
+        };
+      } else {
+        return child;
+      }
+    });
+    const eltWithReducedAttributesAndChildren = {
+      ... elt,
+      attrs: interpolatedAttributes,
+      children: childrenWithInterpolatedAttributes
+    };
+    const [children, reducedContext] = reducer(eltWithReducedAttributesAndChildren, context);
 
     const reducedChildren = children.map(child => {
       /* istanbul ignore next */
       return child ? this.reduceSingleElement(child, reducedContext) : null;
     }).filter(c => c) as Element[];
     const reducedTag: TagElement = {
-      ...eltWithReducedAttributes,
+      ...eltWithReducedAttributesAndChildren,
       attrs: interpolatedAttributes,
       reduced: true,
       children: reducedChildren
@@ -113,7 +128,7 @@ export default class Reducer {
     };
   }
 
-  private interpolateAttributes(attrs: Hash<Attribute<Interpolation>>, context: Context): Hash<any> { // tslint:disable-line
+  private interpolateAttributes(attrs: Hash<Attribute<void|Interpolation>>, context: Context): Hash<any> { // tslint:disable-line
     const props: Hash<Attribute> = {};
     for (const key in attrs) {
       /* istanbul ignore next */
@@ -137,4 +152,29 @@ function stringified(o: any): string | null { // tslint:disable-line
     return o.toString();
   }
   return null;
+}
+
+/**
+ * Removes tag elements (but not text elements) matching the predicate
+ * Predicate takes a hash of attributes, including __name which names the tag.
+ * This is useful for writing reducer components.
+ * E.g.,
+ * removeTag(children, ({__name, someAttr}) => {
+ *   return __name==='foo' && someAttr==='bar'; // all <Foo bar=truthy> tags removed
+ * })
+ *
+ * @param children
+ * @param predicate
+ */
+export function removeTags(
+  children: Element<Interpolation|void>[],
+  predicate: (attrs: Hash<Attribute|void>) => boolean
+): Element<Interpolation|void>[] {
+  return children.filter(child => {
+    if (isTagElement<void>(child)) {
+      return !predicate({...child.attrs, __name: child.name});
+    } else {
+      return true;
+    }
+  });
 }

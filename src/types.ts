@@ -20,6 +20,7 @@ export interface JSONObject {
 }
 export interface JSONArray extends Array<JSONValue> { }
 export type Attribute<I extends Interpolation | void = void> = JSONValue | I | undefined | null;
+export type Attributes = Hash<Attribute<void>>;
 export type ReducedAttribute = JSONValue | undefined | null;
 
 export interface Element<I extends Interpolation | void = void> {
