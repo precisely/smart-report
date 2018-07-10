@@ -1,9 +1,9 @@
 import cases from 'jest-in-case';
-import Reducer from '../src/reducer';
+import Reducer, { removeTags } from '../src/reducer';
 import {
   Hash, InterpolationFunction,
-  Element, ReducibleTagElement, Interpolation, Context,
-  TextElement, ReducibleTextElement
+  Element, Attributes, Interpolation, Context,
+  TextElement, ReducibleTextElement, isTagElement, ReducibleTagElement
 } from '../src/types';
 
 describe('Reducer', function () {
@@ -106,6 +106,57 @@ describe('Reducer', function () {
         reduced: true
       };
       expect(reducer.reduce([tag], context)).toEqual([expectedTag]);
+    });
+
+    describe('when tag removes children based on an attribute, and the child is an interpolation expr,', function () {
+
+      // this is an integration test showing the complex case where a
+      it('should reduce the expression tag reduction', function () {
+        const childElement: ReducibleTagElement = {
+          type: 'tag',
+          name: 'child',
+          rawName: 'Child',
+          attrs: { shouldRemove: { type: 'interpolation', expression: ['accessor', 'removeIt'] }},
+          children: [],
+          reduced: false
+        };
+        const tag: ReducibleTagElement = {
+          type: 'tag',
+          name: 'foo',
+          rawName: 'Foo',
+          attrs: {},
+          children: [ childElement ],
+          reduced: false
+        };
+
+        const reducer = new Reducer({
+          components: {
+            Foo(elt: ReducibleTagElement, ctx: Context) {
+              const reducedChildren = elt.children.filter(child => {
+                return !isTagElement(child) || child.name !== 'child' || !child.attrs.shouldRemove;
+              });
+              return [reducedChildren, ctx];
+            }
+          }
+        });
+
+        // when context contains value which
+        expect(reducer.reduce([tag], {removeIt: true})).toEqual([{
+          ...tag,
+          children: [],
+          reduced: true
+        }]);
+
+        expect(reducer.reduce([tag], {removeIt: false})).toEqual([{
+          ...tag,
+          children: [{
+            ...childElement,
+            attrs: { shouldRemove: false },
+            reduced: true
+          }],
+          reduced: true
+        }]);
+      });
     });
 
     it('should return reduced child tags', function () {
@@ -223,5 +274,46 @@ describe('Reducer', function () {
       { value: { a: 1, b: 'foo', c: {d: 1}}, blocks: ['[object Object]'] },
       { value: null, blocks: [] }
     ]);
+  });
+});
+
+describe('reduceTags', function () {
+  const yesChild: ReducibleTagElement = {
+    type: 'tag', name: 'yesChild', rawName: 'YesChild', children: [], reduced: false, attrs: { val: 'yes' }
+  };
+  const noChild: ReducibleTagElement = {
+    type: 'tag', name: 'noChild', rawName: 'NoChild', children: [], reduced: false, attrs: { val: 'no' }
+  };
+  const textChild: ReducibleTextElement = {
+    type: 'text', blocks: [], reduced: false
+  };
+
+  it('should remove children with attributes that match a predicate', function () {
+    expect(removeTags([yesChild], ({val}: Attributes) => {
+      return val === 'yes';
+    })).toEqual([]);
+    expect(removeTags([noChild], ({val}: Attributes) => {
+      return val === 'no';
+    })).toEqual([]);
+  });
+  it("should not remove children with attributes that don't match a predicate", function () {
+    expect(removeTags([yesChild, noChild], ({val}: Attributes) => {
+      return val === 'yes';
+    })).toEqual([noChild]);
+  });
+
+  it('should preserve non-tag elements', function () {
+    expect(removeTags([yesChild, textChild, noChild], ({val}: Attributes) => {
+      return true;
+    })).toEqual([textChild]);
+  });
+
+  it('should provide the name as __name in the attributes', function () {
+    const names = [];
+    removeTags([yesChild, textChild, noChild], ({__name}: Attributes) => {
+      names.push(__name);
+      return true;
+    });
+    expect(names).toEqual(['yesChild', 'noChild']);
   });
 });
