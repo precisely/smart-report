@@ -78,19 +78,22 @@ export default class Reducer {
     return reducer;
   }
 
+  private forTagsInterpolateAttributes(elements: ReducibleElement[], context: Context) {
+    return elements.map(elt => {
+      if (isTagElement(elt)) {
+        return {
+          ...elt,
+          attrs: this.interpolateAttributes(elt.attrs, context)
+        };
+      } else {
+        return elt;
+      }
+    });
+  }
   private reduceTagElement(elt: TagElement<Interpolation>, context: Context): [TagElement, Context] {
     const interpolatedAttributes = this.interpolateAttributes(elt.attrs, context);
     const reducer = this.reducerFromElement(elt);
-    const childrenWithInterpolatedAttributes = elt.children.map(child => {
-      if (isTagElement(child)) {
-        return {
-          ...child,
-          attrs: this.interpolateAttributes(child.attrs, context)
-        };
-      } else {
-        return child;
-      }
-    });
+    const childrenWithInterpolatedAttributes = this.forTagsInterpolateAttributes(elt.children, context);
     const eltWithReducedAttributesAndChildren = {
       ... elt,
       attrs: interpolatedAttributes,
