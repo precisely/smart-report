@@ -1,7 +1,7 @@
 import { Parser, Renderer } from '../src';
 import streams, { WritableStream } from 'memory-streams';
 import { markdownItEngine } from '../src/engines';
-import { Hash, Component, Element, Interpolation } from '../src/types';
+import { Hash, Component, Element, Interpolation, RenderingFunction, Context } from '../src/types';
 import { Stream } from 'stream';
 
 describe('Renderer', function () {
@@ -27,7 +27,7 @@ describe('Renderer', function () {
       it('should be implicitly available to the component', function() {
         const renderer = new Renderer({
           components: {
-            ShowA({ A }, render) {
+            ShowA({ A }: Context, render: RenderingFunction) {
               render(`A:${A}\n`);
             }
           }
@@ -39,12 +39,12 @@ describe('Renderer', function () {
         expect(result).toEqual(expect.stringContaining('A:1'));
       });
 
-      it('may be changed during rendering', ()=>{
+      it('may be changed during rendering', () => {
         const renderer = new Renderer({
           components: {
-            Square({ val, __children }, render) {
+            Square({ val, __children }: Context, render: RenderingFunction) {
               render(`${val}\n`);
-              render(__children, { val: val**2 });
+              render(__children, { val: val ** 2 });
             }
           }
         });
@@ -169,17 +169,17 @@ describe('Renderer', function () {
         components: components
       });
       const stream = new streams.WritableStream();
-      class X {};
+      class X {}
       // @ts-ignore: these tests are for JS-library users
-      expect(()=>renderer.write(1, {}, stream)).toThrow();
+      expect(() => renderer.write(1, {}, stream)).toThrow();
       // @ts-ignore
-      expect(()=>renderer.write(new X(), {}, stream)).toThrow();
+      expect(() => renderer.write(new X(), {}, stream)).toThrow();
     });
 
     it('should render a component with multiple variables', function () {
       var renderer = new Renderer({
         components: {
-          MyComponent: function ({ __children, a,b,c,d }, render) {
+          MyComponent: function ({ __children, a, b, c, d }: Context, render: RenderingFunction) {
             render('<div class="my-component">');
             render(`a=${a}:${typeof a}\n`);
             render(`b=${b}:${typeof b}\n`);
@@ -206,7 +206,7 @@ describe('Renderer', function () {
       it('and defaultComponent is provided,', function () {
         const renderer = new Renderer({
           components: components,
-          defaultComponent(attrs, render) {
+          defaultComponent(attrs: Context, render: RenderingFunction) {
             render('<div class="default">');
             render(`a=>${attrs.a};b=>${attrs.b};c=>${attrs.c}`);
             render('</div>');
@@ -218,8 +218,8 @@ describe('Renderer', function () {
         const result = stream.toString();
 
         expect(result).toEqual(
-          '<div class="default">'+
-          'a=>123;b=>hello;c=>myval'+
+          '<div class="default">' +
+          'a=>123;b=>hello;c=>myval' +
           '</div>'
         );
       });
@@ -230,7 +230,7 @@ describe('Renderer', function () {
         });
         const dom = parse('<default a=123 b="hello" c={val}></default>');
         const stream = new WritableStream();
-        expect(()=>renderer.write(dom, { val: 'myval' }, stream)).toThrow();
+        expect(() => renderer.write(dom, { val: 'myval' }, stream)).toThrow();
       });
     });
 
