@@ -64,7 +64,7 @@ export type RenderingFunction = (obj: WritableObject, newContext?: Context) => v
 export type Component = (props: Props, render: RenderingFunction) => void;
 
 export type ReducibleElement = Element<Interpolation>;
-export type ReducibleTagElement = TagElement<Interpolation>;
+export type ReducibleTagElement = TagElement<void | Interpolation, Interpolation>;
 export type ReducibleTextElement = TextElement<Interpolation>;
 export type ReducedTagElement = TagElement<void>;
 export type ReducedTextElement = TextElement<void>;

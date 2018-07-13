@@ -4,15 +4,15 @@ import {
   Hash, Interpolation, InterpolationFunction, Context,
   Element, TagElement, TextElement,
   isInterpolation, isTagElement, isTextElement, Attribute,
-  ReducerFunction,
-  ReducibleElement
+  ReducerFunction, ReducibleTagElement, ReducibleTextElement, ReducibleElement,
+  ReducedTextElement
 } from './types';
 import { isString, isNullOrUndefined } from 'util';
 
 // ReducerFunction takes a tag element and context and
 // returns a modified list of child nodes and a modified context
 // When
-const DefaultReducer: ReducerFunction = (elt: TagElement<Interpolation>, context: Context) => [elt.children, context];
+const DefaultReducer: ReducerFunction = (elt: ReducibleTagElement, context: Context) => [elt.children, context];
 /**
  * Renderer
  *
@@ -53,24 +53,65 @@ export default class Reducer {
    * @memberof Reducer
    */
   public reduce(
-    elt: Element<Interpolation>[],
+    elements: Element<Interpolation>[],
     context: Context
   ): Element[] {
-    return elt.map(e => this.reduceSingleElement(e, context));
+    const eltsWithReducedExpressions = this.reduceExpressions(elements, context);
+    return this.reduceTags(eltsWithReducedExpressions, context);
   }
 
-  private reduceSingleElement(elt: Element<Interpolation>, context: Context): Element {
-    if (isTagElement<Interpolation>(elt)) {
-      const result: Element = this.reduceTagElement(elt, context)[0];
-      return result;
-    } else if (isTextElement<Interpolation>(elt)) {
-      return this.reduceTextElement(elt, context);
-    } else {
-      throw new Error(`Fatal error unexpected element: ${elt}`);
-    }
+  private reduceExpressions(
+    elements: ReducibleElement[], context: Context
+  ): (TagElement<void, Interpolation> | ReducedTextElement)[] {
+    return elements.map(elt => {
+      if (isTagElement(elt)) {
+        // tslint:disable no-any
+        return <any> {
+          ...elt,
+          children: this.reduceExpressions(elt.children, context),
+          attrs: this.interpolateAttributes(elt.attrs, context)
+        };
+      } else if (isTextElement<Interpolation>(elt)) {
+        return this.reduceTextElement(elt, context);
+      }
+      throw new Error(`Unexpected element ${elt}`);
+    });
   }
 
-  private reducerFromElement(elt: TagElement<Interpolation>): ReducerFunction {
+  /**
+   * Reduces tags
+   * Note: this function takes a tree with partially reduced tags and fully reduced TextElements
+   *       I.e., it should be called with the result of reduceExpressions
+   * @param elements 
+   * @param context 
+   */
+  private reduceTags(elements: (TagElement<void, Interpolation> | ReducibleElement)[], context: Context): Element[] {
+    return elements.map((elt: ReducibleElement) => {
+      if (isTagElement<Interpolation>(elt)) {
+        return this.reduceTagElement(elt, context);
+      } else if (isTextElement(elt)) {
+        return <TextElement> elt; // assume it has 
+      }
+      throw new Error(`Unexpected element: ${elt}`);
+    });
+  }
+
+  private reduceTagElement(elt: ReducibleTagElement, context: Context): TagElement {
+    const reducer = this.reducerFromElement(elt);
+    const [prunedChildren, reducedContext] = reducer(elt, context);
+
+    const reducedChildren = this.reduceTags(prunedChildren, reducedContext);
+    
+    const reducedTag: TagElement = <any> {
+      ...elt, 
+      reduced: true,
+      children: reducedChildren
+    };
+
+    return reducedTag;
+  }
+
+  private reducerFromElement(elt: TagElement<any, any>): ReducerFunction {
     const reducer = this._reducers[elt.name];
     if (!reducer) {
       return DefaultReducer;
@@ -78,44 +119,7 @@ export default class Reducer {
     return reducer;
   }
 
-  private forTagsInterpolateAttributes(elements: ReducibleElement[], context: Context) {
-    return elements.map(elt => {
-      if (isTagElement(elt)) {
-        return {
-          ...elt,
-          attrs: this.interpolateAttributes(elt.attrs, context)
-        };
-      } else {
-        return elt;
-      }
-    });
-  }
-  private reduceTagElement(elt: TagElement<Interpolation>, context: Context): [TagElement, Context] {
-    const interpolatedAttributes = this.interpolateAttributes(elt.attrs, context);
-    const reducer = this.reducerFromElement(elt);
-    const childrenWithInterpolatedAttributes = this.forTagsInterpolateAttributes(elt.children, context);
-    const eltWithReducedAttributesAndChildren = {
-      ... elt,
-      attrs: interpolatedAttributes,
-      children: childrenWithInterpolatedAttributes
-    };
-    const [children, reducedContext] = reducer(eltWithReducedAttributesAndChildren, context);
-
-    const reducedChildren = children.map(child => {
-      /* istanbul ignore next */
-      return child ? this.reduceSingleElement(child, reducedContext) : null;
-    }).filter(c => c) as Element[];
-    const reducedTag: TagElement = {
-      ...eltWithReducedAttributesAndChildren,
-      attrs: interpolatedAttributes,
-      reduced: true,
-      children: reducedChildren
-    };
-
-    return [reducedTag, reducedContext];
-  }
-
-  private reduceTextElement(textElement: TextElement<Interpolation>, context: Context): TextElement {
+  private reduceTextElement(textElement: ReducibleTextElement, context: Context): TextElement {
     const reducedBlocks = textElement.blocks.map(block => {
       if (isInterpolation(block)) {
         const value = evaluate(block.expression, context, this._functions, this._analysisMode);
