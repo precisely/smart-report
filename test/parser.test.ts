@@ -313,6 +313,15 @@ describe('Parser', function () {
       it('should throw an error if an empty tag is encounter', function () {
         expect(() => parse('<>')).toThrow();
       });
+
+      it('should throw an error if closing tag is encountered with non-word characters', function () {
+        expect(() => parse('</ >')).toThrow();
+      });
+
+      it('should throw an error if closing tag with non-word characters is encountered', function () {
+        expect(() => parse('<\t>')).toThrow();
+        expect(() => parse('<  >')).toThrow();
+      });
     });
 
     describe('with complex input', function () {
