@@ -263,6 +263,21 @@ describe('Parser', function () {
           ' sailor</p>'
         ]);
       });
+
+      it('should parse tags with interpolation functions which contain terminator characters', function () {
+        const elements: any = parse('<MyTag val={ foo("hello>") }></MyTag>'); // tslint:disable-line
+        expect(isArray(elements)).toBeTruthy();
+      });
+
+      it('should parse tags with interpolation functions which contain terminator characters', function () {
+        const elements: any = parse('<MyTag val={ foo("hello>") }></MyTag>'); // tslint:disable-line
+        expect(isArray(elements)).toBeTruthy();
+      });
+
+      it('should parse tags within tags with functions which contain args with terminator characters', function () {
+        const elements: any = parse('<AnalysisBox><Analysis case={ variant("chr1:10A>T") }></Analysis></AnalysisBox>'); // tslint:disable-line
+        expect(isArray(elements)).toBeTruthy();
+      });
     });
 
     describe('with bad input', function () {
@@ -285,6 +300,27 @@ describe('Parser', function () {
 
       it('should throw an error if the tag end brace is missing', function () {
         expect(() => parse('<tag</tag>')).toThrow();
+      });
+
+      it('should throw an error if an incomplete end tag is encountered', function () {
+        expect(() => parse('</')).toThrow();
+      });
+
+      it('should throw an error if an incomplete end tag is encountered', function () {
+        expect(() => parse('<tag></></tag>')).toThrow();
+      });
+
+      it('should throw an error if an empty tag is encounter', function () {
+        expect(() => parse('<>')).toThrow();
+      });
+
+      it('should throw an error if closing tag is encountered with non-word characters', function () {
+        expect(() => parse('</ >')).toThrow();
+      });
+
+      it('should throw an error if closing tag with non-word characters is encountered', function () {
+        expect(() => parse('<\t>')).toThrow();
+        expect(() => parse('<  >')).toThrow();
       });
     });
 
