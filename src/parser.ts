@@ -81,7 +81,7 @@ export default class Parser {
 
   tag(): TagElement<Interpolation> | null {
     // TODO: consider adding \s* to beginning of this regex:
-    const tagMatch = this.cursor.capture(/^<(\/?\w+)/);
+    const tagMatch = this.cursor.capture(/^<(\/?\w*)/);
     if (tagMatch) {
       const rawName = tagMatch[1];
       const attrs = this.captureAttributes();
@@ -98,6 +98,8 @@ export default class Parser {
 
       if (name[0] === '/') {
         throw new CodeError(`Unexpected closing tag <${rawName}>`, this.cursor, ErrorType.UnexpectedClosingTag);
+      } else if (name.length === 0) {
+        throw new CodeError('Empty tag encountered <>', this.cursor, ErrorType.UnknownTag);
       }
 
       const selfClosing = (endBracket[1] === '/');
