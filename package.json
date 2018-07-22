@@ -1,6 +1,6 @@
 {
   "name": "smart-report",
-  "version": "1.1.4",
+  "version": "1.1.5",
   "description": "Smart ",
   "main": "lib/index",
   "typings": "lib/index",
@@ -21,6 +21,12 @@
     "js-htmlencode": "^0.3.0",
     "lodash": "^4.17.10",
     "memory-streams": "^0.1.2"
+  },
+  "optionalDependencies": {
+    "markdown": "^0.5.0",
+    "markdown-it": "^8.4.0",
+    "markdown-js": "^0.0.3",
+    "showdown": "^1.8.6"
   },
   "devDependencies": {
     "@types/jest": "^23.0.0",
