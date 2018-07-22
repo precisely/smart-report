@@ -4,7 +4,7 @@
     "declaration": true,
     "esModuleInterop": true,
     "lib": [ "es2016" ],
-    "module": "umd",
+    "module": "commonjs",
     "moduleResolution": "node",
     "noImplicitAny": true,
     "noImplicitReturns": true,
