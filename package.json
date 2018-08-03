@@ -58,6 +58,7 @@
       "text",
       "lcov",
       "json"
-    ]
+    ],
+    "testURL": "http://localhost/"
   }
 }

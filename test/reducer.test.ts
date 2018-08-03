@@ -1,6 +1,5 @@
 import cases from 'jest-in-case';
 import Reducer, { removeTags } from '../src/reducer';
-import { ReducibleElement } from '../src/types';
 import {
   Hash, InterpolationFunction,
   Element, Attributes, Interpolation, Context,
@@ -70,6 +69,47 @@ describe('Reducer', function () {
         { op: 'or', lhs: true, rhs: false, result: true},
         { op: 'or', lhs: false, rhs: true, result: true},
         { op: 'or', lhs: true, rhs: true, result: true}
+      ]);
+
+      cases('should evaluate unreachable nested logic in text blocks', ([op1, op2, retVal]) => {
+        const expression: any[] = [op1, // tslint:disable-line
+          ['funcall', 'save', {}, ['scalar', 1]],
+          [op2,
+            ['funcall', 'save', {}, ['scalar', 2]],
+            ['funcall', 'save', {}, ['scalar', 3]]]
+        ];
+        const functions: Hash<InterpolationFunction> = {
+          save(c: Context, val: any) { // tslint:disable-line
+            c.values = c.values || [];
+            c.values.push(val);
+            return retVal;
+          }
+        };
+        const reducer = new Reducer({functions, analysisMode: true});
+        const textElement: ReducibleTextElement = {
+          type: 'text',
+          blocks: [{
+            type: 'interpolation',
+            expression: expression
+          }],
+          reduced: false
+        };
+        const context: Context = {};
+        const evaluationResult = reducer.reduce([textElement], context);
+        
+        expect(evaluationResult).toEqual([{
+          type: 'text',
+          blocks: [`${retVal}`],
+          reduced: true
+        }]);
+        expect(context.values).toEqual([1, 2, 3]);
+      }, [
+        ['and', 'and', true],
+        ['and', 'and', false],
+        ['and', 'or', true],
+        ['and', 'or', false],
+        ['or', 'or', true],
+        ['or', 'or', false]
       ]);
 
       cases('should evaluate unreachable logic in tags even ' +
