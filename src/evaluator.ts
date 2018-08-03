@@ -87,14 +87,14 @@ const analyticEvaluators = {
   ...evaluators,
   and(args: EvalArg[], context: Context, functions: Hash<InterpolationFunction>) {
     const [lhs, rhs] = args;
-    const lhsVal = evaluate(lhs, context, functions);
-    const rhsVal = evaluate(rhs, context, functions);
+    const lhsVal = evaluate(lhs, context, functions, true);
+    const rhsVal = evaluate(rhs, context, functions, true);
     return lhsVal && rhsVal;
   },
   or(args: EvalArg[], context: Context, functions: Hash<InterpolationFunction>) {
     const [lhs, rhs] = args;
-    const lhsVal = evaluate(lhs, context, functions);
-    const rhsVal = evaluate(rhs, context, functions);
+    const lhsVal = evaluate(lhs, context, functions, true);
+    const rhsVal = evaluate(rhs, context, functions, true);
     return lhsVal || rhsVal;
   },
   funcall(args: EvalArg[], context: Context, functions: Hash<InterpolationFunction>): Attribute {
@@ -118,7 +118,6 @@ export function evaluate(
   analysis: boolean = false
 ): Attribute {
   const [op, ...args] = expression;
-  // console.log('evaluate(%j, %j, %j)', expression, context, functions);
   const evaluator = (analysis ? analyticEvaluators : evaluators)[op];
   if (evaluator) {
     return evaluator(args, context, functions);
