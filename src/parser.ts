@@ -81,9 +81,13 @@ export default class Parser {
 
   tag(): TagElement<Interpolation> | null {
     // TODO: consider adding \s* to beginning of this regex:
-    const tagMatch = this.cursor.capture(/^<(\/?\w*)/);
+    const tagMatch = this.cursor.capture(/^<(#|\/?\w*)/);
     if (tagMatch) {
       const rawName = tagMatch[1];
+      if (rawName === '#') { // comment
+        this.captureCommentBody();
+        return null;
+      }
       const attrs = this.captureAttributes();
       const endBracket = this.cursor.capture(/^\s*(\/)?>[ \t]*[\r\n]?/);
       const name = rawName.toLowerCase();
@@ -128,6 +132,14 @@ export default class Parser {
     }
 
     return null;
+  }
+
+  captureCommentBody() {
+    const location = this.cursor.clone();
+    const endMatch = this.cursor.capture(/^.*#>/);
+    if (!endMatch) {
+      new CodeError('Unbalanced comment', location, ErrorType.NoClosingComment);
+    }
   }
 
   zipTextAndInterpolation(textBlocks: string[], interpolationElements: Interpolation[]) {
@@ -212,6 +224,9 @@ export default class Parser {
       if (escapedText) {
         // this is not a break, capture the character and continue...
         blocks.push(textMatch[0] + escapedText[0][0]);
+      } else if (this.cursor.peek(2) === '<#') {
+        this.captureCommentBody();
+        blocks.push(textMatch[0]);
       } else {
         blocks.push(textMatch[0]);
         return blocks.join('');

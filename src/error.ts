@@ -10,6 +10,7 @@ export const enum ErrorType {
    UnexpectedOperator = 'UnexpectedOperator',
    ValueUndefined = 'ValueUndefined',
    FunctionNotDefined = 'FunctionNotDefined',
+   NoClosingComment = 'NoClosingComment',
    UnknownTag = 'UnknownTag'
 }
 
