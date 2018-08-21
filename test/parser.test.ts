@@ -1,3 +1,4 @@
+// tslint:disable no-any
 import fs from 'fs';
 import path from 'path';
 
@@ -17,7 +18,7 @@ describe('Parser', function () {
       expect(() => new Parser({})).toThrow();
     });
 
-    it('should take an interpolationPoint argument which sets the string for splitting text on interpolations', function () { // tslint:disable-line
+    it('should set interpolationPoint for splitting text on interpolations', function () { 
       var parser = new Parser({ markdownEngine: () => null, interpolationPoint: 'abcdefg' });
       expect(parser.interpolationPoint).toEqual('abcdefg');
     });
@@ -64,7 +65,7 @@ describe('Parser', function () {
     });
 
     it('should parse a text block', function () {
-      var elements: any = parse('Some text'); // tslint:disable-line
+      var elements: any = parse('Some text'); 
       expect(isArray(elements)).toBeTruthy();
       expect(elements).toHaveLength(1);
       expect(elements[0].type).toEqual('text');
@@ -72,7 +73,7 @@ describe('Parser', function () {
     });
 
     it('should parse recursive tags', function () {
-      var elements: any = parse('<Outer a={ x.y }>\n' + // tslint:disable-line
+      var elements: any = parse('<Outer a={ x.y }>\n' + 
         '  <Inner a=123>\n' +
         '  </Inner>\n' +
         '</Outer>');
@@ -275,8 +276,50 @@ describe('Parser', function () {
       });
 
       it('should parse tags within tags with functions which contain args with terminator characters', function () {
-        const elements: any = parse('<AnalysisBox><Analysis case={ variant("chr1:10A>T") }></Analysis></AnalysisBox>'); // tslint:disable-line
+        const elements: any = parse('<AnalysisBox><Analysis case={ variant("chr1:10A>T") }></Analysis></AnalysisBox>'); 
         expect(isArray(elements)).toBeTruthy();
+      });
+    });
+
+    describe('comments', function () {
+      it('should ignore comments at the beginning of text', function () {
+        const elements: any = parse('<# ignored #>hello sailor'); 
+        expect(elements).toEqual([{
+          type: 'text',
+          blocks: [ '<p>hello sailor</p>' ],
+          reduced: false
+        }]);
+      });
+
+      it('should ignore comments at the end of text', function () {
+        const elements: any = parse('hello sailor<# ignored #>'); 
+        expect(elements).toEqual([{
+          type: 'text',
+          blocks: [ '<p>hello sailor</p>' ],
+          reduced: false
+        }]);
+      });
+      
+      it('should ignore comments in the middle of text', function () {
+        const elements: any = parse('hello<# ignored #> sailor'); 
+        expect(elements).toEqual([{
+          type: 'text',
+          blocks: [ '<p>hello sailor</p>' ],
+          reduced: false
+        }]);
+      });
+
+      it('should ignore comments between tags', function () {
+        const elements: any = parse('<div>  <# ignored #>  </div>'); 
+        expect(elements).toEqual([{
+          type: 'tag',
+          name: 'div',
+          attrs: {},
+          rawName: 'div',
+          children: [],
+          reduced: false,
+          selfClosing: false
+        }]);
       });
     });
 
@@ -322,6 +365,10 @@ describe('Parser', function () {
         expect(() => parse('<\t>')).toThrow();
         expect(() => parse('<  >')).toThrow();
       });
+
+      it('should throw an error if unbalanced comment syntax is encountered', function () {
+        expect(() => parse('Here is some text <# unclosed comment ooops!')).toThrow();
+      });
     });
 
     describe('with complex input', function () {
@@ -339,7 +386,7 @@ describe('Parser', function () {
       it('should interpolate into markdown', function () {
         expect(parseResult[0].type).toEqual('text');
         expect(parseResult[0].blocks).toEqual([
-          '<h1>heading1</h1>\n<p>Text after and interpolation ',
+          '<h1>heading1</h1>\n<p>Text after an interpolation ',
           { type: 'interpolation', expression: ['accessor', 'x.y'] },
           ' heading1</p>'
         ]);

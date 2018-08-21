@@ -13,6 +13,10 @@ export default class Cursor implements Location {
   private _index: number;
   private readonly _buffer: Buffer;
 
+  clone(): Cursor {
+    return new Cursor(this._buffer, this._index);
+  }
+
   /**
    * index - current location of the cursor from the start
    *
