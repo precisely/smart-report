@@ -8,6 +8,7 @@ E.g.,
 ```html
 <# A Box which defaults to blue if user has no favorite color #>
 <Box color={user.favoriteColor or "blue"} lineWidth=3>
+  <# this is a comment #>
   ## subheading
   * listElement1
   * listElement2
