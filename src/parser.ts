@@ -136,7 +136,7 @@ export default class Parser {
 
   captureCommentBody() {
     const location = this.cursor.clone();
-    const endMatch = this.cursor.capture(/^.*#>/);
+    const endMatch = this.cursor.capture(/^.*#>/m);
     if (!endMatch) {
       throw new CodeError('Unbalanced comment', location, ErrorType.NoClosingComment);
     }

@@ -265,6 +265,19 @@ describe('Parser', function () {
         ]);
       });
 
+      it('should parse multiline interpolation logic', function () {
+        const elements: any = parse('hello { (x\n and\n y\n) or\n z\n } sailor'); // tslint:disable-line
+        expect(isArray(elements)).toBeTruthy();
+        expect(elements[0].type).toEqual('text');
+        expect(elements[0].blocks).toEqual([
+          '<p>hello ',
+          { type: 'interpolation',
+            expression: ['or', ['and', ['accessor', 'x'], ['accessor', 'y']], ['accessor', 'z']]
+          },
+          ' sailor</p>'
+        ]);
+      });
+
       it('should parse tags with interpolation functions which contain terminator characters', function () {
         const elements: any = parse('<MyTag val={ foo("hello>") }></MyTag>'); // tslint:disable-line
         expect(isArray(elements)).toBeTruthy();
@@ -311,6 +324,19 @@ describe('Parser', function () {
 
       it('should ignore comments between tags', function () {
         const elements: any = parse('<div>  <# ignored #>  </div>'); 
+        expect(elements).toEqual([{
+          type: 'tag',
+          name: 'div',
+          attrs: {},
+          rawName: 'div',
+          children: [],
+          reduced: false,
+          selfClosing: false
+        }]);
+      });
+      
+      it('should be able to handle a multiline comment', function () {
+        const elements: any = parse('<div><# ignored\n   ignored\n   ignored\n #></div>'); 
         expect(elements).toEqual([{
           type: 'tag',
           name: 'div',
