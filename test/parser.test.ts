@@ -365,6 +365,10 @@ describe('Parser', function () {
         expect(() => parse('<\t>')).toThrow();
         expect(() => parse('<  >')).toThrow();
       });
+
+      it('should throw an error if unbalanced comment syntax is encountered', function () {
+        expect(() => parse('Here is some text <# unclosed comment ooops!')).toThrow();
+      });
     });
 
     describe('with complex input', function () {
