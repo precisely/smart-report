@@ -1,6 +1,5 @@
-import { isObject, isArray, isNumber, isString } from 'lodash';
+export type Context = { [key: string]: any }; // tslint:disable-line no-any
 
-export type Context = { [key: string]: any }; // tslint:disable-line
 export type InterpolationFunction = (context: Context, ...args: any[]) => Attribute; // tslint:disable-line
 
 export interface Hash<T> {
