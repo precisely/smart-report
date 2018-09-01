@@ -11,7 +11,8 @@ export const enum ErrorType {
    ValueUndefined = 'ValueUndefined',
    FunctionNotDefined = 'FunctionNotDefined',
    NoClosingComment = 'NoClosingComment',
-   UnknownTag = 'UnknownTag'
+   UnknownTag = 'UnknownTag',
+   InvalidSymbol = 'InvalidSymbol'
 }
 
 export class CodeError extends Error {

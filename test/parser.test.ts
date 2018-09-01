@@ -29,6 +29,56 @@ describe('Parser', function () {
       expect(parser1.interpolationPoint).toEqual(DEFAULT_INTERPOLATION_POINT);
       expect(parser2.interpolationPoint).toEqual(DEFAULT_INTERPOLATION_POINT);
     });
+
+    describe('allowedTags', function () {
+
+      it('should not throw an error if an allowed tag is encountered', function () {
+        var parser = new Parser({ 
+          markdownEngine: markdownItEngine(),
+          allowedTags: ['Foo', 'bar']
+        });
+        expect(() => parser.parse('<Foo>bar</Foo>')).not.toThrow();
+        expect(() => parser.parse('<foo>bar</foo>')).not.toThrow();
+        expect(() => parser.parse('<Bar/>')).not.toThrow();
+        expect(() => parser.parse('<bar/>')).not.toThrow();
+      });
+
+      it('should throw an error if allowedTags is defined, but an unrecognized tag is encountered', function () {
+        var parser = new Parser({ 
+          markdownEngine: markdownItEngine(),
+          allowedTags: []
+
+        });
+        expect(() => parser.parse('<Foo>bar</Foo>')).toThrow();
+      });
+    });
+
+    describe('allowedFunctions', function () {
+
+      it('should not throw an error if an allowed function is encountered', function () {
+        var parser = new Parser({ 
+          markdownEngine: markdownItEngine(),
+          allowedFunctions: ['valid']
+        });
+        expect(() => parser.parse('This is an allowed function { valid() }')).not.toThrow();
+      });
+
+      it('should not throw an error if a function is encountered and allowedFunctions is undefined', function () {
+        var parser = new Parser({ 
+          markdownEngine: markdownItEngine()
+        });
+        expect(() => parser.parse('And function is allowed { foo() }')).not.toThrow();
+      });
+
+      it('should throw an error if allowedFunctions is defined, but an unrecognized tag is encountered', function () {
+        var parser = new Parser({ 
+          markdownEngine: markdownItEngine(),
+          allowedFunctions: []
+
+        });
+        expect(() => parser.parse('This is a disallowed function { foo() }')).toThrow();
+      });
+    });
   });
 
   describe('ATTRIBUTE_RE', function () {
