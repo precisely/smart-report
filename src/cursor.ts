@@ -5,9 +5,9 @@ export default class Cursor implements Location {
   constructor(input: Buffer | string, index: number = 0) {
     this._index = index;
     if (input instanceof Buffer) { // funky duplication because @types/node uses overloads
-      this._buffer = new Buffer(input);
+      this._buffer = Buffer.alloc(input.length, input);
     } else {
-      this._buffer = new Buffer(input);
+      this._buffer = Buffer.alloc(input.length, input);
     }
   }
   private _index: number;

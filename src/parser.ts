@@ -1,3 +1,5 @@
+import {zipObject} from 'lodash';
+
 import Cursor from './cursor';
 import streams from 'memory-streams';
 import { isFunction } from 'lodash';
@@ -9,21 +11,36 @@ export const DEFAULT_INTERPOLATION_POINT = '=interpolation-point=';
 export const ATTRIBUTE_RE = /^\s*([^/=<>"'\s]+)\s*(?:=\s*((?:"([^"]*)")|([-+]?[0-9]*\.?[0-9]+)|((?=\{))|(true|false)))?/; // tslint:disable-line
 
 type CaptureFn = () => Element<Interpolation> | null;
+export type ParserOptions = {
+  markdownEngine?: Function,
+  interpolationPoint?: string,
+  indentedMarkdown?: boolean,
+  allowedTags?: string[];
+  allowedFunctions?: string[];
+};
 
 export default class Parser {
-  constructor({ markdownEngine = undefined, interpolationPoint = undefined, indentedMarkdown = true }:
-    {
-      markdownEngine?: Function,
-      interpolationPoint?: string,
-      indentedMarkdown?: boolean
-    }) {
+  constructor({ 
+    indentedMarkdown = true,
+    markdownEngine,
+    interpolationPoint,
+    allowedTags,
+    allowedFunctions
+   }: ParserOptions
+  ) {
     if (!isFunction(markdownEngine)) {
       throw new Error('Invalid markdownEngine');
     }
-
     this._markdownEngine = markdownEngine || (() => null);
     this._interpolationPoint = interpolationPoint || DEFAULT_INTERPOLATION_POINT;
     this._indentedMarkdown = indentedMarkdown;
+    this._allowedTags = allowedTags ? 
+      zipObject(allowedTags.map(t => t.toLowerCase()), allowedTags.map(() => true)) 
+      : undefined;
+    this._allowedFunctions = allowedFunctions ? 
+      zipObject(allowedFunctions, allowedFunctions.map(() => true)) 
+      : undefined;
+    
     this.cursor = new Cursor('');
   }
 
@@ -35,6 +52,8 @@ export default class Parser {
   private _markdownEngine: Function;
   private _interpolationPoint: string;
   private _indentedMarkdown: boolean;
+  private _allowedTags?: { [key: string]: boolean}; 
+  private _allowedFunctions?: { [key: string]: boolean }; 
 
   parse(input: string | Buffer): Element<Interpolation>[] {
     this.cursor = new Cursor(input);
@@ -84,10 +103,13 @@ export default class Parser {
     const tagMatch = this.cursor.capture(/^<(#|\/?\w*)/);
     if (tagMatch) {
       const rawName = tagMatch[1];
+      const isClosingTag = rawName[0] === '/';
+
       if (rawName === '#') { // comment
         this.captureCommentBody();
         return null;
       }
+      this.checkTag(isClosingTag ? rawName.slice(1) : rawName);
       const attrs = this.captureAttributes();
       const endBracket = this.cursor.capture(/^\s*(\/)?>[ \t]*[\r\n]?/);
       const name = rawName.toLowerCase();
@@ -100,7 +122,7 @@ export default class Parser {
         );
       }
 
-      if (name[0] === '/') {
+      if (isClosingTag) {
         throw new CodeError(`Unexpected closing tag <${rawName}>`, this.cursor, ErrorType.UnexpectedClosingTag);
       } else if (name.length === 0) {
         throw new CodeError('Empty tag encountered <>', this.cursor, ErrorType.UnknownTag);
@@ -350,6 +372,7 @@ export default class Parser {
   captureSymbolExpression(symbol: string, isFuncall: boolean): Expression {
     if (isFuncall) { // funcall
       const location = { lineNumber: this.cursor.lineNumber, columnNumber: this.cursor.columnNumber };
+      this.checkFunction(symbol); 
       return [OpType.funcall, symbol, location, ...this.captureInterpolationFunctionArguments(symbol)];
     } else { // value
       return [OpType.accessor, symbol];
@@ -405,5 +428,21 @@ export default class Parser {
       }
     }
     return args;
+  }
+
+  // 
+  // Checks for allowed tags and functions
+  //
+
+  checkTag(tagName: string) {
+    if (this._allowedTags && !this._allowedTags[tagName.toLowerCase()]) {
+      throw new CodeError(`Invalid tag: ${tagName}`, this.cursor, ErrorType.InvalidSymbol);
+    }
+  }
+
+  checkFunction(functionName: string) {
+    if (this._allowedFunctions && !this._allowedFunctions[functionName]) {
+      throw new CodeError(`Invalid function: ${functionName}`, this.cursor, ErrorType.InvalidSymbol);
+    }
   }
 }
