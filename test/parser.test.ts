@@ -6,6 +6,10 @@ import Parser, { DEFAULT_INTERPOLATION_POINT, ATTRIBUTE_RE } from '../src/parser
 import { markdownItEngine } from '../src/engines';
 import { Interpolation, Element, ReducedAttribute } from '../src/types';
 import { isArray } from 'util';
+import { ParserError } from '../src/parser';
+import cases = require('jest-in-case');
+import { ErrorType } from '../src/error';
+const permutation = require('array-permutation');
 
 describe('Parser', function () {
   describe('constructor', function () {
@@ -15,6 +19,7 @@ describe('Parser', function () {
     });
 
     it("should throw an error if markdownEngine isn't provided", function () {
+      expect(() => new Parser({})).toThrow();
       expect(() => new Parser({})).toThrow();
     });
 
@@ -32,51 +37,51 @@ describe('Parser', function () {
 
     describe('allowedTags', function () {
 
-      it('should not throw an error if an allowed tag is encountered', function () {
+      it('should not produce errors if an allowed tag is encountered', function () {
         var parser = new Parser({ 
           markdownEngine: markdownItEngine(),
           allowedTags: ['Foo', 'bar']
         });
-        expect(() => parser.parse('<Foo>bar</Foo>')).not.toThrow();
-        expect(() => parser.parse('<foo>bar</foo>')).not.toThrow();
-        expect(() => parser.parse('<Bar/>')).not.toThrow();
-        expect(() => parser.parse('<bar/>')).not.toThrow();
+        expect(parser.parse('<Foo>bar</Foo>').errors).toHaveLength(0);
+        expect(parser.parse('<foo>bar</foo>').errors).toHaveLength(0);
+        expect(parser.parse('<Bar/>').errors).toHaveLength(0);
+        expect(parser.parse('<bar/>').errors).toHaveLength(0);
       });
 
-      it('should throw an error if allowedTags is defined, but an unrecognized tag is encountered', function () {
+      it('should produce an error if allowedTags is defined, but an unrecognized tag is encountered', function () {
         var parser = new Parser({ 
           markdownEngine: markdownItEngine(),
           allowedTags: []
 
         });
-        expect(() => parser.parse('<Foo>bar</Foo>')).toThrow();
+        expect(parser.parse('<Foo>bar</Foo>').errors).toHaveLength(1);
       });
     });
 
     describe('allowedFunctions', function () {
 
-      it('should not throw an error if an allowed function is encountered', function () {
+      it('should not produce errors if an allowed function is encountered', function () {
         var parser = new Parser({ 
           markdownEngine: markdownItEngine(),
           allowedFunctions: ['valid']
         });
-        expect(() => parser.parse('This is an allowed function { valid() }')).not.toThrow();
+        expect(parser.parse('This is an allowed function { valid() }').errors).toHaveLength(0);
       });
 
-      it('should not throw an error if a function is encountered and allowedFunctions is undefined', function () {
+      it('should not produce errors if a function is encountered and allowedFunctions is undefined', function () {
         var parser = new Parser({ 
           markdownEngine: markdownItEngine()
         });
-        expect(() => parser.parse('And function is allowed { foo() }')).not.toThrow();
+        expect(parser.parse('And function is allowed { foo() }').errors).toHaveLength(0);
       });
 
-      it('should throw an error if allowedFunctions is defined, but an unrecognized tag is encountered', function () {
+      it('should produce an error if allowedFunctions is defined, but an unrecognized tag is encountered', function () {
         var parser = new Parser({ 
           markdownEngine: markdownItEngine(),
           allowedFunctions: []
 
         });
-        expect(() => parser.parse('This is a disallowed function { foo() }')).toThrow();
+        expect(parser.parse('This is a disallowed function { foo() }').errors).toHaveLength(1);
       });
     });
   });
@@ -106,7 +111,7 @@ describe('Parser', function () {
   });
 
   describe('#parse', function () {
-    var parse: (text: string | Buffer) => Element<Interpolation>[];
+    var parse: (text: string | Buffer) => { elements: Element<Interpolation>[], errors: ParserError[]};
     beforeEach(function () {
       var parser = new Parser({ markdownEngine: markdownItEngine() });
       parse = function (text: string | Buffer) {
@@ -114,40 +119,173 @@ describe('Parser', function () {
       };
     });
 
-    it('should parse a text block', function () {
-      var elements: any = parse('Some text'); 
-      expect(isArray(elements)).toBeTruthy();
-      expect(elements).toHaveLength(1);
-      expect(elements[0].type).toEqual('text');
-      expect(elements[0].blocks).toEqual(['<p>Some text</p>']);
+    describe('attributes', function () {
+      it('should parse a string attribute', function () {
+        const {elements, errors} = parse(`<MyTag a="foo"></MyTag>`);
+        expect(errors).toHaveLength(0);
+        expect(elements).toHaveLength(1);
+        expect(elements[0]).toMatchObject({
+          type: 'tag',
+          attrs: {
+            a: 'foo'
+          }
+        });
+      });
+
+      it('should parse numbers', function () {
+        const {elements, errors} = parse(`<MyTag a=123 b=3.456></MyTag>`);
+        expect(errors).toHaveLength(0);
+        expect(elements).toHaveLength(1);
+        expect(elements[0]).toMatchObject({
+          type: 'tag',
+          attrs: {
+            a: 123,
+            b: 3.456
+          }
+        });
+      });
+
+      it('should parse interpolation attributes', function () {
+        const {elements, errors} = parse(`<MyTag a={ x }></MyTag>`);
+        expect(errors).toHaveLength(0);
+        expect(elements).toHaveLength(1);
+        expect(elements[0]).toMatchObject({
+          type: 'tag',
+          attrs: {
+            a: { type: 'interpolation' }
+          }
+        });
+      });
+
+      it('should parse explicit boolean attributes', function () {
+        const {elements, errors} = parse(`<MyTag a=true b=false></MyTag>`);
+        expect(errors).toHaveLength(0);
+        expect(elements).toHaveLength(1);
+        expect(elements[0]).toMatchObject({
+          type: 'tag',
+          attrs: {
+            a: true,
+            b: false
+          }
+        });
+      });
+
+      it('should parse implicit boolean attributes', function () {
+        const {elements, errors} = parse(`<MyTag a></MyTag>`);
+        expect(errors).toHaveLength(0);
+        expect(elements).toHaveLength(1);
+        expect(elements[0]).toMatchObject({
+          type: 'tag',
+          attrs: {
+            a: true
+          }
+        });
+      });
+
+      it('should parse implicit boolean attributes before other attributes', function () {
+        const {elements, errors} = parse(`<MyTag a b=1></MyTag>`);
+        expect(errors).toHaveLength(0);
+        expect(elements).toHaveLength(1);
+        expect(elements[0]).toMatchObject({
+          type: 'tag',
+          attrs: {
+            a: true,
+            b: 1
+          }
+        });
+      });
+
+      it('should parse attributes containing new lines', function () {
+        const {elements, errors} = parse(`<MyTag a=1 \n b=2 \n c="foo" \n></MyTag>`);
+        expect(errors).toHaveLength(0);
+        expect(elements).toHaveLength(1); 
+        expect(elements[0]).toMatchObject({
+          attrs: {
+            a: 1,
+            b: 2,
+            c: 'foo'
+          }
+        });
+      });
+
+      cases('should parse attributes in any order', (attribs: string[]) => {
+        const attributeInsert = attribs.join(' ');
+        const {elements, errors} = parse(`<MyTag ${attributeInsert}></MyTag>`);
+        expect(errors).toHaveLength(0);
+        expect(elements).toHaveLength(1);
+        expect(elements[0]).toMatchObject({
+          type: 'tag',
+          attrs: {
+            a: 1,
+            b: 'string',
+            c: { type: 'interpolation' },
+            d: true,
+            e: true
+          }
+        });
+      }, Array.from(permutation(['a=1', 'b="string"', '\n', 'c={ x.y }', 'd', 'e=true'])));
+
+      it('should parse attributes containing errors', () => {
+        const {elements, errors} = parse('<MyTag a="valid" b=123 err2| err1=[123]></MyTag>');
+        expect(errors).toHaveLength(2);
+        expect(elements).toHaveLength(1);
+        expect(elements[0]).toMatchObject({
+          type: 'tag'
+        });
+      });
+
+      cases('should parse many attributes containing errors in any order', (attribs: string[]) => {
+        // const attribs = ['a="valid"', 'b=123', 'err1=[123]', 'err2|' ];
+        const attributeInsert = attribs.join(' ');
+        const {elements, errors} = parse(`<MyTag ${attributeInsert}></MyTag>`);
+        expect(errors).toHaveLength(2);
+        expect(elements).toHaveLength(1);
+        expect(elements[0]).toMatchObject({
+          type: 'tag'
+        });
+      }, 
+      Array.from(permutation(['a="valid"', 'b=123', 'err1=[123]', 'err2|' ])));
     });
 
-    it('should parse recursive tags', function () {
-      var elements: any = parse('<Outer a={ x.y }>\n' + 
-        '  <Inner a=123>\n' +
-        '  </Inner>\n' +
-        '</Outer>');
-      expect(isArray(elements)).toBeTruthy();
-      expect(elements).toHaveLength(1);
-      expect(elements[0].type).toEqual('tag');
-      expect(elements[0].name).toEqual('outer');
-      expect(elements[0].children).toHaveLength(1);
-      expect(elements[0].children[0].name).toEqual('inner');
-    });
+    describe('core elements', function () {
+        
+      it('should parse a text block', function () {
+        var { elements, errors }: { elements: any, errors: ParserError[]} = parse('Some text'); 
+        expect(isArray(elements)).toBeTruthy();
+        expect(elements).toHaveLength(1);
+        expect(elements[0].type).toEqual('text');
+        expect(elements[0].blocks).toEqual(['<p>Some text</p>']);
+        expect(errors).toHaveLength(0);
+      });
 
-    it('should parse tags with no spaces', function () {
-      var elements: any = parse('<Outer><inner></inner></outer>'); // tslint:disable-line
-      expect(isArray(elements)).toBeTruthy();
-      expect(elements[0].name).toEqual('outer');
-      expect(elements[0].children[0].name).toEqual('inner');
-    });
+      it('should parse recursive tags', function () {
+        var { elements, errors }: { elements: any, errors: ParserError[] } = parse('<Outer a={ x.y }>\n' + 
+          '  <Inner a=123>\n' +
+          '  </Inner>\n' +
+          '</Outer>');
+        expect(isArray(elements)).toBeTruthy();
+        expect(elements).toHaveLength(1);
+        expect(elements[0].type).toEqual('tag');
+        expect(elements[0].name).toEqual('outer');
+        expect(elements[0].children).toHaveLength(1);
+        expect(elements[0].children[0].name).toEqual('inner');
+      });
 
-    it('should correctly parse an interpolation followed by a tag', function () {
-      var elements: any = parse('<Outer>{test}<inner></inner></outer>'); // tslint:disable-line
-      expect(isArray(elements)).toBeTruthy();
-      expect(elements[0].name).toEqual('outer');
-      expect(elements[0].children[0].type).toEqual('text');
-      expect(elements[0].children[1].name).toEqual('inner');
+      it('should parse tags with no spaces', function () {
+        var { elements, errors }: { elements: any, errors: ParserError[] } = parse('<Outer><inner></inner></outer>'); 
+        expect(isArray(elements)).toBeTruthy();
+        expect(elements[0].name).toEqual('outer');
+        expect(elements[0].children[0].name).toEqual('inner');
+      });
+
+      it('should correctly parse an interpolation followed by a tag', function () {
+        var { elements, errors }: { elements: any, errors: ParserError[] } 
+          = parse('<Outer>{test}<inner></inner></outer>');
+        expect(isArray(elements)).toBeTruthy();
+        expect(elements[0].name).toEqual('outer');
+        expect(elements[0].children[0].type).toEqual('text');
+        expect(elements[0].children[1].name).toEqual('inner');
+      });
     });
 
     describe('indentation', function () {
@@ -156,7 +294,7 @@ describe('Parser', function () {
           indentedMarkdown: false,
           markdownEngine: markdownItEngine()
         });
-        var elements: any = parser.parse( // tslint:disable-line
+        var { elements, errors }: { elements: any, errors: ParserError[] } = parser.parse( // tslint:disable-line
           '    # Heading\n' +
           '    Some text\n'
         );
@@ -173,10 +311,12 @@ describe('Parser', function () {
           indentedMarkdown: true,
           markdownEngine: markdownItEngine()
         });
-        var elements: any = parser.parse( // tslint:disable-line
+        var { elements, errors }: { elements: any, errors: ParserError[] } = parser.parse( // tslint:disable-line
           '    # Heading\n' +
           '    Some text\n'
         );
+        
+        expect(errors).toHaveLength(0);
         expect(elements[0]).toEqual({
           type: 'text',
           blocks: ['<pre><code># Heading\nSome text\n</code></pre>'],
@@ -189,12 +329,13 @@ describe('Parser', function () {
           indentedMarkdown: true,
           markdownEngine: markdownItEngine()
         });
-        var elements: any = parser.parse( // tslint:disable-line
+        var { elements, errors }: { elements: any, errors: ParserError[] } = parser.parse( // tslint:disable-line
           '<mytag>\n' +
           '    # Heading\n' +
           '    Some text\n' +
           '</mytag>\n'
         );
+        expect(errors).toHaveLength(0);
         expect(elements[0].children).toEqual([
           {
             type: 'text',
@@ -213,7 +354,7 @@ describe('Parser', function () {
             markdownEngine: markdownItEngine()
           });
 
-          testFn = () => parser.parse(
+          const {errors} = parser.parse(
             '<mytag>\n' +
             '     # Here is some indented markdown\n' +
             '     with some valid text\n' +
@@ -221,7 +362,7 @@ describe('Parser', function () {
             '     and some valid indented text\n' +
             '</mytag>'
           );
-          expect(testFn).toThrow('Bad indentation in text block at 2:1');
+          expect(errors).toHaveLength(1);
         });
 
         it('should ignore indentation if indentedMarkdown is false', function () {
@@ -231,20 +372,24 @@ describe('Parser', function () {
             markdownEngine: markdownItEngine()
           });
 
-          testFn = () => parser.parse(
+          const {elements, errors} = parser.parse(
             '     # Here is some indented markdown\n' +
             '     with some valid text\n' +
             '   and some invalid dedented text' +
             '     and some valid indented text'
           );
-          expect(testFn).not.toThrow();
+          expect(errors).toHaveLength(0);
+          expect(elements).toHaveLength(1);
+          expect(elements[0]).toMatchObject({
+            type: 'text'
+          });
         });
       });
     });
 
     describe('interpolation', function () {
       it('should parse interpolation with an accessor', function () {
-        var elements: any = parse('{ someVar }'); // tslint:disable-line
+        var { elements, errors }: { elements: any, errors: ParserError[] } = parse('{ someVar }'); // tslint:disable-line
         expect(isArray(elements)).toBeTruthy();
         expect(elements[0].type).toEqual('text');
         expect(elements[0].blocks).toEqual([
@@ -255,7 +400,7 @@ describe('Parser', function () {
       });
 
       it('should parse interpolation with scalar', function () {
-        var elements: any = parse('{ "abc" }'); // tslint:disable-line
+        var { elements, errors }: { elements: any, errors: ParserError[] } = parse('{ "abc" }'); // tslint:disable-line
         expect(isArray(elements)).toBeTruthy();
         expect(elements[0].type).toEqual('text');
         expect(elements[0].blocks).toEqual([
@@ -266,8 +411,9 @@ describe('Parser', function () {
       });
 
       it('should parse interpolation with a function call', function () {
-        var elements: any = parse('{ foo("bar") }'); // tslint:disable-line
+        var { elements, errors }: { elements: any, errors: ParserError[] } = parse('{ foo("bar") }'); // tslint:disable-line
         expect(isArray(elements)).toBeTruthy();
+        expect(errors).toHaveLength(0);
         expect(elements[0].type).toEqual('text');
         expect(elements[0].blocks).toEqual([
           '<p>',
@@ -280,7 +426,7 @@ describe('Parser', function () {
       });
 
       it('should parse interpolation with a logic expression', function () {
-        const elements: any = parse('{ foo("bar") and "hello" or x.y }'); // tslint:disable-line
+        var { elements, errors }: { elements: any, errors: ParserError[] } = parse('{ foo("bar") and "hello" or x.y }'); // tslint:disable-line
         expect(isArray(elements)).toBeTruthy();
         expect(elements[0].type).toEqual('text');
         const funcallBlock = elements[0].blocks[1];
@@ -292,7 +438,7 @@ describe('Parser', function () {
       });
 
       it('should parse interpolation in the midst of text', function () {
-        const elements: any = parse('hello { x.y } sailor'); // tslint:disable-line
+        var { elements, errors }: { elements: any, errors: ParserError[] } = parse('hello { x.y } sailor'); // tslint:disable-line
         expect(isArray(elements)).toBeTruthy();
         expect(elements[0].type).toEqual('text');
         expect(elements[0].blocks).toEqual([
@@ -303,7 +449,7 @@ describe('Parser', function () {
       });
 
       it('should parse an interpolation group', function () {
-        const elements: any = parse('hello { (x and y) or z } sailor'); // tslint:disable-line
+        var { elements, errors }: { elements: any, errors: ParserError[] } = parse('hello { (x and y) or z } sailor'); // tslint:disable-line
         expect(isArray(elements)).toBeTruthy();
         expect(elements[0].type).toEqual('text');
         expect(elements[0].blocks).toEqual([
@@ -316,7 +462,7 @@ describe('Parser', function () {
       });
 
       it('should parse multiline interpolation logic', function () {
-        const elements: any = parse('hello { (x\n and\n y\n) or\n z\n } sailor'); // tslint:disable-line
+        var { elements, errors }: { elements: any, errors: ParserError[] } = parse('hello { (x\n and\n y\n) or\n z\n } sailor'); // tslint:disable-line
         expect(isArray(elements)).toBeTruthy();
         expect(elements[0].type).toEqual('text');
         expect(elements[0].blocks).toEqual([
@@ -329,24 +475,26 @@ describe('Parser', function () {
       });
 
       it('should parse tags with interpolation functions which contain terminator characters', function () {
-        const elements: any = parse('<MyTag val={ foo("hello>") }></MyTag>'); // tslint:disable-line
+        var { elements, errors }: { elements: any, errors: ParserError[] } = parse('<MyTag val={ foo("hello>") }></MyTag>'); // tslint:disable-line
         expect(isArray(elements)).toBeTruthy();
       });
 
       it('should parse tags with interpolation functions which contain terminator characters', function () {
-        const elements: any = parse('<MyTag val={ foo("hello>") }></MyTag>'); // tslint:disable-line
+        var { elements, errors }: { elements: any, errors: ParserError[] } = parse('<MyTag val={ foo("hello>") }></MyTag>'); // tslint:disable-line
         expect(isArray(elements)).toBeTruthy();
       });
 
       it('should parse tags within tags with functions which contain args with terminator characters', function () {
-        const elements: any = parse('<AnalysisBox><Analysis case={ variant("chr1:10A>T") }></Analysis></AnalysisBox>'); 
+        var { elements, errors }: { elements: any, errors: ParserError[] } 
+          = parse('<AnalysisBox><Analysis case={ variant("chr1:10A>T") }></Analysis></AnalysisBox>'); 
         expect(isArray(elements)).toBeTruthy();
       });
     });
 
     describe('comments', function () {
       it('should ignore comments at the beginning of text', function () {
-        const elements: any = parse('<# ignored #>hello sailor'); 
+        var { elements, errors }: { elements: any, errors: ParserError[] } = parse('<# ignored #>hello sailor'); 
+        expect(errors).toHaveLength(0);
         expect(elements).toEqual([{
           type: 'text',
           blocks: [ '<p>hello sailor</p>' ],
@@ -355,7 +503,7 @@ describe('Parser', function () {
       });
 
       it('should ignore comments at the end of text', function () {
-        const elements: any = parse('hello sailor<# ignored #>'); 
+        var { elements, errors }: { elements: any, errors: ParserError[] } = parse('hello sailor<# ignored #>'); 
         expect(elements).toEqual([{
           type: 'text',
           blocks: [ '<p>hello sailor</p>' ],
@@ -364,7 +512,7 @@ describe('Parser', function () {
       });
       
       it('should ignore comments in the middle of text', function () {
-        const elements: any = parse('hello<# ignored #> sailor'); 
+        var { elements, errors }: { elements: any, errors: ParserError[] } = parse('hello<# ignored #> sailor'); 
         expect(elements).toEqual([{
           type: 'text',
           blocks: [ '<p>hello sailor</p>' ],
@@ -373,7 +521,7 @@ describe('Parser', function () {
       });
 
       it('should ignore comments between tags', function () {
-        const elements: any = parse('<div>  <# ignored #>  </div>'); 
+        var { elements, errors }: { elements: any, errors: ParserError[] } = parse('<div>  <# ignored #>  </div>'); 
         expect(elements).toEqual([{
           type: 'tag',
           name: 'div',
@@ -386,7 +534,8 @@ describe('Parser', function () {
       });
       
       it('should be able to handle a multiline comment', function () {
-        const elements: any = parse('<div><# ignored\n   ignored\n   ignored\n #></div>'); 
+        var { elements, errors }: { elements: any, errors: ParserError[] } 
+          = parse('<div><# ignored\n   ignored\n   ignored\n #></div>'); 
         expect(elements).toEqual([{
           type: 'tag',
           name: 'div',
@@ -401,67 +550,75 @@ describe('Parser', function () {
 
     describe('with bad input', function () {
       it("should throw an error if closing tag isn't present", function () {
-        expect(() => parse('<outer><inner></inner>')).toThrow();
+        expect(parse('<outer><inner></inner>').errors).not.toHaveLength(0);
       });
 
       it('should throw an error if invalid closing tag is encountered', function () {
-        expect(() => parse('<outer><inner></outer>')).toThrow();
+        expect(parse('<outer><inner></outer>').errors).not.toHaveLength(0);
       });
 
       it('should throw an error if an invalid attribute is given', function () {
-        expect(() => parse('<tag a=1 b=[123]></tag>')).toThrow();
-        expect(() => parse("<tag a=1 b='123'></tag>")).toThrow();
+        expect(true).toBeTruthy();
+        expect(parse('<tag a=1 b=[123]></tag>').errors).not.toHaveLength(0);
+        expect(parse("<tag a=1 b='123'></tag>").errors).not.toHaveLength(0);
       });
 
       it('should throw an error if an attribute interpolation is unclosed', function () {
-        expect(() => parse('<tag a={></tag>')).toThrow();
+        expect(parse('<tag a={></tag>').errors).not.toHaveLength(0);
       });
 
       it('should throw an error if the tag end brace is missing', function () {
-        expect(() => parse('<tag</tag>')).toThrow();
+        expect(parse('<tag</tag>').errors).not.toHaveLength(0);
       });
 
       it('should throw an error if an incomplete end tag is encountered', function () {
-        expect(() => parse('</')).toThrow();
+        expect(parse('</').errors).not.toHaveLength(0);
       });
 
       it('should throw an error if an incomplete end tag is encountered', function () {
-        expect(() => parse('<tag></></tag>')).toThrow();
+        expect(parse('<tag></></tag>').errors).not.toHaveLength(0);
       });
 
       it('should throw an error if an empty tag is encounter', function () {
-        expect(() => parse('<>')).toThrow();
+        expect(parse('<>').errors).not.toHaveLength(0);
       });
 
       it('should throw an error if closing tag is encountered with non-word characters', function () {
-        expect(() => parse('</ >')).toThrow();
+        expect(parse('</ >').errors).not.toHaveLength(0);
       });
 
       it('should throw an error if closing tag with non-word characters is encountered', function () {
-        expect(() => parse('<\t>')).toThrow();
-        expect(() => parse('<  >')).toThrow();
+        expect(parse('<\t>').errors).not.toHaveLength(0);
+        expect(parse('<  >').errors).not.toHaveLength(0);
       });
 
       it('should throw an error if unbalanced comment syntax is encountered', function () {
-        expect(() => parse('Here is some text <# unclosed comment ooops!')).toThrow();
+        expect(parse('Here is some text <# unclosed comment ooops!').errors).not.toHaveLength(0);
       });
     });
 
     describe('with complex input', function () {
-      var parseResult: any; // tslint:disable-line
+      var elements: any; // tslint:disable-line
+      var errors: ParserError[];
       beforeEach(function () {
         const example = fs.readFileSync(path.join(__dirname, 'example.md'));
-        parseResult = parse(example);
+        const parseResult = parse(example);
+        elements = parseResult.elements;
+        errors = parseResult.errors;
+      });
+
+      it('should have no errors', function () {
+        expect(errors).toHaveLength(0);
       });
 
       it('should return an array containing objects representing the parsed HTML tree', function () {
-        expect(isArray(parseResult)).toBeTruthy();
-        expect(parseResult).toHaveLength(5);
+        expect(isArray(elements)).toBeTruthy();
+        expect(elements).toHaveLength(5);
       });
 
       it('should interpolate into markdown', function () {
-        expect(parseResult[0].type).toEqual('text');
-        expect(parseResult[0].blocks).toEqual([
+        expect(elements[0].type).toEqual('text');
+        expect(elements[0].blocks).toEqual([
           '<h1>heading1</h1>\n<p>Text after an interpolation ',
           { type: 'interpolation', expression: ['accessor', 'x.y'] },
           ' heading1</p>'
@@ -469,28 +626,28 @@ describe('Parser', function () {
       });
 
       it('should parse a tag within markdown', function () {
-        expect(parseResult[1].type).toEqual('tag');
-        expect(parseResult[1].name).toEqual('div');
-        expect(parseResult[1].children).toHaveLength(1);
+        expect(elements[1].type).toEqual('tag');
+        expect(elements[1].name).toEqual('div');
+        expect(elements[1].children).toHaveLength(1);
       });
 
       it('should parse a self closing tag', function () {
-        expect(parseResult[2].type).toEqual('tag');
-        expect(parseResult[2].name).toEqual('selfclosing');
+        expect(elements[2].type).toEqual('tag');
+        expect(elements[2].name).toEqual('selfclosing');
       });
 
       describe('while parsing a component with each type of attribute', function () {
         let attrs: any; // tslint:disable-line
 
         beforeEach(function () {
-          attrs = parseResult[4].attrs;
+          attrs = elements[4].attrs;
         });
 
         it('should parse the element correctly, providing type, name, children and attributes', function () {
-          expect(parseResult[4].type).toEqual('tag');
-          expect(parseResult[4].name).toEqual('mycomponent');
-          expect(parseResult[4].attrs).toBeDefined();
-          expect(parseResult[4].children).toHaveLength(2);
+          expect(elements[4].type).toEqual('tag');
+          expect(elements[4].name).toEqual('mycomponent');
+          expect(elements[4].attrs).toBeDefined();
+          expect(elements[4].children).toHaveLength(2);
         });
 
         it('should parse a number attribute correctly', function () {
@@ -523,7 +680,7 @@ describe('Parser', function () {
       });
 
       it('should handle curly and angle escapes', function () {
-        expect(parseResult[4].children[0]).toEqual({
+        expect(elements[4].children[0]).toEqual({
           type: 'text',
           blocks: [
             '<p>Text inside MyComponent\n' +
@@ -535,8 +692,51 @@ describe('Parser', function () {
           ],
           reduced: false
         });
-        expect(parseResult[4].children[1].type).toEqual('tag');
-        expect(parseResult[4].children[1].name).toEqual('subcomponent');
+        expect(elements[4].children[1].type).toEqual('tag');
+        expect(elements[4].children[1].name).toEqual('subcomponent');
+      });
+    });
+
+    describe('with multiple errors', function () {
+      var elements, errors;
+
+      beforeEach(() => {
+        const example = fs.readFileSync(path.join(__dirname, 'errors.md'));
+        const result = parse(example);
+        elements = result.elements;
+        errors = result.errors;
+      });
+      it('should parse elements', function () {
+        expect(elements).toHaveLength(3);
+      });
+
+      it('should detect the bad indentation', function () {
+        const detected = errors.filter(e => e.type === ErrorType.BadIndentation);
+        expect(detected).toHaveLength(1);
+        expect(detected[0].location.lineNumber).toEqual(5);
+      });
+
+      it('should detect invalid expression', function () {
+        const detected = errors.filter(e => e.type === ErrorType.InvalidExpression);
+        expect(detected).not.toHaveLength(0);
+        expect(detected[0].location.lineNumber).toEqual(6);
+      });
+      it('should detect an invalid attribute', function () {
+        const detected = errors.filter(e => e.type === ErrorType.InvalidAttribute);
+        expect(detected).toHaveLength(1);
+        expect(detected[0].location.lineNumber).toEqual(7);
+      });
+
+      it('should detect an a non-closing tag', function () {
+        const detected = errors.filter(e => e.type === ErrorType.NoClosingTag);
+        expect(detected).toHaveLength(1);
+        expect(detected[0].location.lineNumber).toEqual(9);
+      });
+
+      it('should detect an a non-closing comment', function () {
+        const detected = errors.filter(e => e.type === ErrorType.NoClosingComment);
+        expect(detected).toHaveLength(1);
+        expect(detected[0].location.lineNumber).toEqual(10);
       });
     });
   });

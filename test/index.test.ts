@@ -13,7 +13,7 @@ describe('toHTML', function() {
   };
 
   it('should create HTML in one step with evilStreakEngine', function() {
-    const result = toHTML({
+    const {html, errors} = toHTML({
       input:
         '<SimpleComponent a={ x.y }>\n' +
         '  <SimpleComponent a=123>\n' +
@@ -25,14 +25,15 @@ describe('toHTML', function() {
       context: { x: { y: 'hello' }}
     });
 
-    expect(typeof result).toBe('string');
-    expect(result).toEqual(expect.stringContaining('a=hello:string'));
-    expect(result).toEqual(expect.stringContaining('a=123:number'));
-    expect(result).toEqual(expect.stringContaining('<h1>Heading with interpolation - hello</h1>'));
+    expect(errors).toHaveLength(0);
+    expect(typeof html).toBe('string');
+    expect(html).toEqual(expect.stringContaining('a=hello:string'));
+    expect(html).toEqual(expect.stringContaining('a=123:number'));
+    expect(html).toEqual(expect.stringContaining('<h1>Heading with interpolation - hello</h1>'));
   });
 
   it('should create HTML in one step with showdownEngine', function () {
-    const result = toHTML({
+    const {html, errors} = toHTML({
       input:
         '<SimpleComponent a={ x.y }>\n' +
         '  <SimpleComponent a=123>\n' +
@@ -43,10 +44,11 @@ describe('toHTML', function() {
       markdownEngine: showdownEngine(),
       context: { x: { y: 'hello' }}
     });
-
-    expect(typeof result).toBe('string');
-    expect(result).toEqual(expect.stringContaining('a=hello:string'));
-    expect(result).toEqual(expect.stringContaining('a=123:number'));
-    expect(result).toEqual(expect.stringContaining('<h1>Heading with interpolation - hello</h1>'));
+    
+    expect(errors).toHaveLength(0);
+    expect(typeof html).toBe('string');
+    expect(html).toEqual(expect.stringContaining('a=hello:string'));
+    expect(html).toEqual(expect.stringContaining('a=123:number'));
+    expect(html).toEqual(expect.stringContaining('<h1>Heading with interpolation - hello</h1>'));
   });
 });

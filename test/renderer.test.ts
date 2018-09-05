@@ -1,12 +1,13 @@
+// tslint:disable no-any
 import { Parser, Renderer } from '../src';
 import streams, { WritableStream } from 'memory-streams';
 import { markdownItEngine } from '../src/engines';
 import { Hash, Component, Element, Interpolation, RenderingFunction, Context } from '../src/types';
-import { Stream } from 'stream';
+import { ParserError } from '../src/parser';
 
 describe('Renderer', function () {
   var components: Hash<Component>;
-  var parse: (input: string) => Element<Interpolation>[];
+  var parse: (input: string) => { elements: Element<Interpolation>[], errors: ParserError[] };
 
   describe('write', function () {
 
@@ -14,7 +15,7 @@ describe('Renderer', function () {
       var parser = new Parser({ markdownEngine: markdownItEngine() });
       parse = (input: string) => parser.parse(input);
       components =  {
-        SimpleComponent: function ({ __children, a }, render) {
+        SimpleComponent: function ({ __children, a }: any, render: RenderingFunction) {
           render('<div class="simple-component">');
           render(`a=${a}:${ typeof a }\n`);
           render(__children);
@@ -32,7 +33,7 @@ describe('Renderer', function () {
             }
           }
         });
-        const dom = parse('<ShowA/>');
+        const { elements: dom } = parse('<ShowA/>');
         const stream = new streams.WritableStream();
         renderer.write(dom, { A: 1 }, stream);
         const result  = stream.toString();
@@ -48,7 +49,7 @@ describe('Renderer', function () {
             }
           }
         });
-        const dom = parse('<Square><Square><Square></Square></Square></Square>');
+        const {elements: dom} = parse('<Square><Square><Square></Square></Square></Square>');
         const stream = new streams.WritableStream();
         renderer.write(dom, { val: 2 }, stream);
         const result  = stream.toString();
@@ -64,7 +65,7 @@ describe('Renderer', function () {
       const renderer = new Renderer({
         components: components
       });
-      const dom = parse('<SimpleComponent a=1.09 />');
+      const {elements: dom} = parse('<SimpleComponent a=1.09 />');
       const stream = new streams.WritableStream();
       renderer.write(dom, { a: { b: 'xyz' }}, stream);
       const result  = stream.toString();
@@ -76,7 +77,7 @@ describe('Renderer', function () {
       const renderer = new Renderer({
         components: components
       });
-      const dom = parse('<SimpleComponent a="abc" />');
+      const {elements: dom} = parse('<SimpleComponent a="abc" />');
       const stream = new streams.WritableStream();
       renderer.write(dom, { a: { b: 'xyz' }}, stream);
       const result  = stream.toString();
@@ -88,7 +89,7 @@ describe('Renderer', function () {
       const renderer = new Renderer({
         components: components
       });
-      const dom = parse('<SimpleComponent a={x.y} />');
+      const {elements: dom} = parse('<SimpleComponent a={x.y} />');
       const stream = new streams.WritableStream();
       renderer.write(dom, { x: { y: 'xyz' }}, stream);
       const result  = stream.toString();
@@ -100,7 +101,7 @@ describe('Renderer', function () {
       const renderer = new Renderer({
         components: components
       });
-      const dom = parse('<SimpleComponent a={ x.y } />');
+      const {elements: dom} = parse('<SimpleComponent a={ x.y } />');
       const stream = new streams.WritableStream();
       renderer.write(dom, { x: { y: 'xyz' }}, stream);
       const result  = stream.toString();
@@ -112,7 +113,7 @@ describe('Renderer', function () {
       const renderer = new Renderer({
         components: components
       });
-      const dom = parse(
+      const {elements: dom} = parse(
         '<SimpleComponent a={ x.y }>\n' +
         '  <SimpleComponent a=123>\n' +
         '  </SimpleComponent>\n' +
@@ -129,7 +130,7 @@ describe('Renderer', function () {
       const renderer = new Renderer({
         components: components
       });
-      const dom = parse(
+      const {elements: dom} = parse(
         '<SimpleComponent>\n' +
         '# heading\n' +
         '* listItem1\n' +
@@ -151,7 +152,7 @@ describe('Renderer', function () {
       const renderer = new Renderer({
         components: components
       });
-      const dom = parse(
+      const {elements: dom} = parse(
         '<SimpleComponent>\n' +
         "# { user.name }'s Settings\n" +
         '* setting1\n' +
@@ -191,7 +192,7 @@ describe('Renderer', function () {
         }
       });
 
-      const dom = parse('<MyComponent a=1 b="string" c={a.b} d={ a.b }/>');
+      const {elements: dom} = parse('<MyComponent a=1 b="string" c={a.b} d={ a.b }/>');
       const stream = new streams.WritableStream();
       renderer.write(dom, { a: { b: 'xyz' }}, stream);
       const result  = stream.toString();
@@ -213,7 +214,7 @@ describe('Renderer', function () {
           }
         });
         const stream = new streams.WritableStream();
-        const dom = parse('<default a=123 b="hello" c={val}></default>');
+        const {elements: dom} = parse('<default a=123 b="hello" c={val}></default>');
         renderer.write(dom, { val: 'myval' }, stream);
         const result = stream.toString();
 
@@ -228,7 +229,7 @@ describe('Renderer', function () {
         const renderer = new Renderer({
           components: components
         });
-        const dom = parse('<default a=123 b="hello" c={val}></default>');
+        const {elements: dom} = parse('<default a=123 b="hello" c={val}></default>');
         const stream = new WritableStream();
         expect(() => renderer.write(dom, { val: 'myval' }, stream)).toThrow();
       });

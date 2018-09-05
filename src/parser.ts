@@ -1,14 +1,14 @@
-import {zipObject} from 'lodash';
+import { zipObject, isString } from 'lodash';
 
 import Cursor from './cursor';
 import streams from 'memory-streams';
 import { isFunction } from 'lodash';
 import { CodeError, ErrorType } from './error';
 import { OpType } from './evaluator';
-import { Element, Interpolation, TagElement, TextElement, Attribute, Hash, Expression } from './types';
+import { Element, Interpolation, TagElement, TextElement, Attribute, Hash, Expression, Location } from './types';
 
 export const DEFAULT_INTERPOLATION_POINT = '=interpolation-point=';
-export const ATTRIBUTE_RE = /^\s*([^/=<>"'\s]+)\s*(?:=\s*((?:"([^"]*)")|([-+]?[0-9]*\.?[0-9]+)|((?=\{))|(true|false)))?/; // tslint:disable-line
+export const ATTRIBUTE_RE = /^\s*(\w+)\s*(?:(?:=\s*((?:"([^"]*)")|([-+]?[0-9]*\.?[0-9]+)|((?=\{))|(true|false)))|(\s+|(?=\/?>))|([^\w]))/; // tslint:disable-line
 
 type CaptureFn = () => Element<Interpolation> | null;
 export type ParserOptions = {
@@ -17,6 +17,12 @@ export type ParserOptions = {
   indentedMarkdown?: boolean,
   allowedTags?: string[];
   allowedFunctions?: string[];
+};
+
+export type ParserError = {
+  type: ErrorType,
+  message: string,
+  location: Location
 };
 
 export default class Parser {
@@ -31,6 +37,7 @@ export default class Parser {
     if (!isFunction(markdownEngine)) {
       throw new Error('Invalid markdownEngine');
     }
+    this._errors = [];
     this._markdownEngine = markdownEngine || (() => null);
     this._interpolationPoint = interpolationPoint || DEFAULT_INTERPOLATION_POINT;
     this._indentedMarkdown = indentedMarkdown;
@@ -54,10 +61,12 @@ export default class Parser {
   private _indentedMarkdown: boolean;
   private _allowedTags?: { [key: string]: boolean}; 
   private _allowedFunctions?: { [key: string]: boolean }; 
+  private _errors: ParserError[];
 
-  parse(input: string | Buffer): Element<Interpolation>[] {
+  parse(input: string | Buffer): { elements: Element<Interpolation>[], errors: ParserError[] } {
     this.cursor = new Cursor(input);
-    return this.content();
+    this._errors = [];
+    return { elements: this.content(), errors: this._errors };
   }
 
   // returns true if a close is encountered
@@ -78,7 +87,7 @@ export default class Parser {
     return false;
   }
 
-  content(closeTag?: string, removeIndent: boolean = false): Element<Interpolation>[] {
+  content(closeTag?: string, removeIndent: boolean = false, startTagLocation?: Location): Element<Interpolation>[] {
     const closeTest: RegExp | null = closeTag ? new RegExp(`^</${closeTag}>`, 'i') : null;
     var elements: Element<Interpolation>[] = [];
 
@@ -92,7 +101,7 @@ export default class Parser {
     }
 
     if (closeTag) {
-      throw new CodeError(`Expecting closing tag </${closeTag}>`, this.cursor, ErrorType.NoClosingTag);
+      this.error(`Expecting closing tag </${closeTag}>`, ErrorType.NoClosingTag, startTagLocation);
     }
 
     return elements;
@@ -111,25 +120,26 @@ export default class Parser {
       }
       this.checkTag(isClosingTag ? rawName.slice(1) : rawName);
       const attrs = this.captureAttributes();
+      const startTagLocation = this.cursor.clone();
       const endBracket = this.cursor.capture(/^\s*(\/)?>[ \t]*[\r\n]?/);
       const name = rawName.toLowerCase();
 
       if (!endBracket) {
-        throw new CodeError(
+        this.error(
           `Missing end bracket while parsing '<${rawName} ...'`,
-          this.cursor,
           ErrorType.MissingEndBracket
         );
+        return null;
       }
 
       if (isClosingTag) {
-        throw new CodeError(`Unexpected closing tag <${rawName}>`, this.cursor, ErrorType.UnexpectedClosingTag);
+        this.error(`Unexpected closing tag <${rawName}>`, ErrorType.UnexpectedClosingTag);
       } else if (name.length === 0) {
-        throw new CodeError('Empty tag encountered <>', this.cursor, ErrorType.UnknownTag);
+        this.error('Empty tag encountered <>', ErrorType.UnknownTag);
       }
 
       const selfClosing = (endBracket[1] === '/');
-      const children = selfClosing ? [] : this.content(rawName, this._indentedMarkdown);
+      const children = selfClosing ? [] : this.content(rawName, this._indentedMarkdown, startTagLocation);
 
       return {
         type: 'tag',
@@ -158,9 +168,9 @@ export default class Parser {
 
   captureCommentBody() {
     const location = this.cursor.clone();
-    const endMatch = this.cursor.capture(/^.*#>/m);
-    if (!endMatch) {
-      throw new CodeError('Unbalanced comment', location, ErrorType.NoClosingComment);
+    const endMatch = this.cursor.capture(/(?:[\s\S]*?(#>))|(?:[\s\S]*)/m);
+    if (!endMatch || !endMatch[1]) {
+      this.error('Unbalanced comment', ErrorType.NoClosingComment, location);
     }
   }
 
@@ -215,9 +225,10 @@ export default class Parser {
         if (lineIndent >= indentation) {
           resultLines.push(line.slice(indentation));
         } else { // error! dedent detected
-          const cursor = this.cursor;
-          cursor.seek(cursor.indexFromLine(startLineNumber));
-          throw new CodeError('Bad indentation in text block', cursor, ErrorType.BadIndentation);
+          const cursor = this.cursor.clone();
+          cursor.seek(cursor.indexFromLine(startLineNumber + resultLines.length));
+          this.error('Bad indentation in text block', ErrorType.BadIndentation, cursor);
+          resultLines.push(line.slice(lineIndent));
         }
       }
     }
@@ -261,6 +272,7 @@ export default class Parser {
   captureAttributes(): Hash<Attribute<Interpolation>> {
     var attribs: Hash<Attribute<Interpolation>> = {};
     var match;
+    const endOfTag = /^\s*\/?>/;
 
     while (match = this.cursor.capture(ATTRIBUTE_RE)) {
       var variable = match[1];
@@ -270,12 +282,22 @@ export default class Parser {
         attribs[variable] = parseFloat(match[4]);
       } else if (match[5] === '') { // interpolation start
         attribs[variable] = this.captureInterpolation();
-      } else if (match[6]) {
+      } else if (match[6]) { // explicity boolean
         attribs[variable] = match[6] === 'true' ? true : false;
-      } else { // must be boolean true
+      } else if (isString(match[7])) { // implicit boolean - isString is also true for empty string
         attribs[variable] = true;
+      } else {
+        this.error(`Invalid attribute ${variable}`, ErrorType.InvalidAttribute);
+        this.cursor.capture(/^[^\s>]*/);
       }
+    } 
+
+    if (!this.cursor.test(endOfTag)) {
+      this.error('Invalid attributes', ErrorType.InvalidAttribute);
+      // capture cursor until closing >
+      this.cursor.capture(/^[^>]*\/?>/);
     }
+    
     return attribs;
   }
 
@@ -315,9 +337,10 @@ export default class Parser {
   //
   captureInterpolation(): Interpolation | null {
     if (this.cursor.capture(/^\s*\{/)) {
-      const expression = this.captureInterpolationExpression(/^\s*((?=\}))/);
+      let expression = this.captureInterpolationExpression(/^\s*((?=\}))/);
       if (!expression) {
-        throw new CodeError('Invalid expression', this.cursor, ErrorType.InvalidExpression);
+        this.error('Invalid expression', ErrorType.InvalidExpression);
+        expression = [];
       }
       const result: Interpolation = {
         type: 'interpolation',
@@ -350,9 +373,8 @@ export default class Parser {
       if (expressionMatch[1]) { // binary operator
         return this.captureInterpolationBinaryOperator(expressionMatch[1], lhs, terminator);
       } else if (lhs) {
-        throw new CodeError(
+        this.error(
           `Expecting "and" or "or" but received "${capture}"`,
-          this.cursor,
           ErrorType.InvalidExpression
         );
       } else if (expressionMatch[4]) {
@@ -364,7 +386,7 @@ export default class Parser {
       } else if (expressionMatch[3]) { // group start: ( ...
         return this.captureInterpolationGroup();
       }
-      throw new CodeError('Invalid expression', this.cursor, ErrorType.InvalidExpression);
+      this.error('Invalid expression', ErrorType.InvalidExpression);
     }
     return null;
   }
@@ -383,13 +405,15 @@ export default class Parser {
     try {
       return [OpType.scalar, JSON.parse(scalarExpression)];
     } catch (e) {
-      throw new CodeError(`Invalid expression ${scalarExpression}`, this.cursor, ErrorType.InvalidExpression);
+      this.error(`Invalid expression ${scalarExpression}`, ErrorType.InvalidExpression);
+      return [];
     }
   }
 
   captureInterpolationBinaryOperator(binOp: string, lhs: Expression | null, terminator: RegExp): Expression {
     if (!lhs) {
-      throw new CodeError(`Unexpected operator ${binOp}`, this.cursor, ErrorType.UnexpectedOperator);
+      this.error(`Unexpected operator ${binOp}`, ErrorType.UnexpectedOperator);
+      return [];
     } else {
       return [binOp, lhs, this.captureInterpolationExpression(terminator)];
     }
@@ -398,7 +422,8 @@ export default class Parser {
   captureInterpolationUnaryOperator(op: string, terminator: RegExp): Expression {
     const term = this.captureInterpolationTerm(null, terminator);
     if (!term) {
-      throw new CodeError(`Expecting a term after ${op}`, this.cursor, ErrorType.InvalidExpression);
+      this.error(`Expecting a term after ${op}`, ErrorType.InvalidExpression);
+      return [];
     }
     return [op, term];
   }
@@ -417,11 +442,13 @@ export default class Parser {
         if (arg) {
           args.push(arg);
         } else {
-          throw new CodeError(`Invalid argument to ${symbol}`, this.cursor, ErrorType.InvalidArgument);
+          this.error(`Invalid argument to ${symbol}`, ErrorType.InvalidArgument);
+          return [];
         }
         const argNextMatch = this.cursor.capture(/^\s*(\)|\,)/);
         if (!argNextMatch) {
-          throw new CodeError(`Expecting , or ) in call to ${symbol}`, this.cursor, ErrorType.InvalidArgument);
+          this.error(`Expecting , or ) in call to ${symbol}`, ErrorType.InvalidArgument);
+          return [];
         } else if (argNextMatch[1]) { // closing paren )
           break;
         } // else found comma - continue processing args
@@ -430,19 +457,29 @@ export default class Parser {
     return args;
   }
 
+  error(message: string, type: ErrorType, location?: Location) {
+    location = location || this.cursor;
+    if (location instanceof Cursor) {
+      location = location.clone();
+    }
+    this._errors.push({
+      type, message, location: location
+    });
+  }
+
   // 
   // Checks for allowed tags and functions
   //
 
   checkTag(tagName: string) {
     if (this._allowedTags && !this._allowedTags[tagName.toLowerCase()]) {
-      throw new CodeError(`Invalid tag: ${tagName}`, this.cursor, ErrorType.InvalidSymbol);
+      this.error(`Invalid tag: ${tagName}`, ErrorType.InvalidSymbol);
     }
   }
 
   checkFunction(functionName: string) {
     if (this._allowedFunctions && !this._allowedFunctions[functionName]) {
-      throw new CodeError(`Invalid function: ${functionName}`, this.cursor, ErrorType.InvalidSymbol);
+      this.error(`Invalid function: ${functionName}`, ErrorType.InvalidSymbol);
     }
   }
 }
