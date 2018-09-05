@@ -61,7 +61,7 @@ Custom components:
 
 // render the markdown with your custom components,
 // providing context variables:
-var html = toHTML({
+var {html, errors} = toHTML({
   input: customizedMarkdown,
   components: components,
   context: { user: { favoriteColor: 'blue' }},
@@ -105,6 +105,15 @@ Allows you to write:
 # This markdown
 Will be displayed on a red background
 </Box>
+```
+
+### Errors
+
+The `toHTML` and `Parser.parse` methods return a key, `errors` containing a list of errors detected.  For example:
+```js
+const {elements, errors} = parser.parse('#Oh oh\n<Foo>');
+console.log(errors); // =>
+// [{type: 'NoCloseTag', location: { lineNumber: 2, columnNumber: 21 }, message: 'Expecting closing tag </Foo>'}]
 ```
 
 ## Rationale
@@ -172,12 +181,12 @@ Returns a JSON object representing the parsed markdown.
 ```javascript
 import { Parser, showdownEngine } from 'smart-report';
 var parser = new Parser({markdownEngine:}); // use showdownjs
-var parsedElements = parser.parse(`<MyComponent a={ x.y.z } b=123 c="hello" d e=false >
+var {elements, errors} = parser.parse(`<MyComponent a={ x.y.z } b=123 c="hello" d e=false >
 # User likes { user.color or "no" } color
 </MyComponent>
 `);
 // =>
-// [
+// { elements: [
 //   {
 //     type: "tag",
 //     name: 'mycomponent',
@@ -205,7 +214,8 @@ var parsedElements = parser.parse(`<MyComponent a={ x.y.z } b=123 c="hello" d e=
 //       }
 //     ]
 //   }
-// ]
+// ], errors: []
+// }
 ```
 
 #### Attribute types
@@ -357,17 +367,17 @@ var renderer = new Renderer({
 });
 
 var parser = new Parser({ markdownEngine: markdownItEnginer() });
-var parsedElements = parser.parse('<Box color={user.favoriteColor}>_Here is some_ *markdown*</Box>');
+var {elements, errors} = parser.parse('<Box color={user.favoriteColor}>_Here is some_ *markdown*</Box>');
 
 // red box
 stream = streams.getWriteableStream();
-renderer.write(parsedElements,{ user: { favoriteColor: "red" } }, stream);
+renderer.write(elements,{ user: { favoriteColor: "red" } }, stream);
 console.log(stream.toString());
 // <div class="box" style="background-color:red"><i>Here is some</i> <b>markdown</b></div>
 
 // blue box
 stream = streams.getWriteableStream();
-renderer.write(parsedElements,{ user: { favoriteColor: "blue" } }, stream);
+renderer.write(elements,{ user: { favoriteColor: "blue" } }, stream);
 console.log(stream.toString());
 // <div class="box" style="background-color:blue"><i>Here is some</i> <b>markdown</b></div>
 ```
@@ -392,8 +402,8 @@ const reducer = new Reducer({
 #### #reduce
 ```javascript
 const parser = new Parser();
-const parseTree = parser.parse('some text');
+const {elements} = parser.parse('some text');
 const context = {};
-reducer.reduce(parseTree, context);
+reducer.reduce(elements, context);
 ```
 
