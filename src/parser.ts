@@ -1,4 +1,4 @@
-import {zipObject} from 'lodash';
+import { zipObject, isString } from 'lodash';
 
 import Cursor from './cursor';
 import streams from 'memory-streams';
@@ -8,8 +8,7 @@ import { OpType } from './evaluator';
 import { Element, Interpolation, TagElement, TextElement, Attribute, Hash, Expression, Location } from './types';
 
 export const DEFAULT_INTERPOLATION_POINT = '=interpolation-point=';
-export const ATTRIBUTE_RE = /^\s*(\w+)\s*(?:=\s*((?:"([^"]*)")|([-+]?[0-9]*\.?[0-9]+)|((?=\{))|(true|false)|(?=\b|>)))?/; // tslint:disable-line
-// export const ATTRIBUTE_RE = /^\s*([^/=<>"'\s]+)\s*(?:=\s*((?:"([^"]*)")|([-+]?[0-9]*\.?[0-9]+)|((?=\{))|(true|false)|(?=\b|>)))?/; // tslint:disable-line
+export const ATTRIBUTE_RE = /^\s*(\w+)\s*(?:(?:=\s*((?:"([^"]*)")|([-+]?[0-9]*\.?[0-9]+)|((?=\{))|(true|false)))|(\s+|(?=\/?>))|([^\w]))/; // tslint:disable-line
 
 type CaptureFn = () => Element<Interpolation> | null;
 export type ParserOptions = {
@@ -283,15 +282,13 @@ export default class Parser {
         attribs[variable] = parseFloat(match[4]);
       } else if (match[5] === '') { // interpolation start
         attribs[variable] = this.captureInterpolation();
-      } else if (match[6]) {
+      } else if (match[6]) { // explicity boolean
         attribs[variable] = match[6] === 'true' ? true : false;
-      } else { // must be boolean true
-        if (this.cursor.test(ATTRIBUTE_RE) || this.cursor.test(endOfTag)) {
-          attribs[variable] = true;
-        } else {
-          this.error(`Invalid attribute ${variable}`, ErrorType.InvalidAttribute);
-          this.cursor.capture(/^[^\s>]*/);
-        }
+      } else if (isString(match[7])) { // implicit boolean - isString is also true for empty string
+        attribs[variable] = true;
+      } else {
+        this.error(`Invalid attribute ${variable}`, ErrorType.InvalidAttribute);
+        this.cursor.capture(/^[^\s>]*/);
       }
     } 
 

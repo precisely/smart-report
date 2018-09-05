@@ -171,13 +171,26 @@ describe('Parser', function () {
       });
 
       it('should parse implicit boolean attributes', function () {
-        const {elements, errors} = parse(`<MyTag a=true></MyTag>`);
+        const {elements, errors} = parse(`<MyTag a></MyTag>`);
         expect(errors).toHaveLength(0);
         expect(elements).toHaveLength(1);
         expect(elements[0]).toMatchObject({
           type: 'tag',
           attrs: {
             a: true
+          }
+        });
+      });
+
+      it('should parse implicit boolean attributes before other attributes', function () {
+        const {elements, errors} = parse(`<MyTag a b=1></MyTag>`);
+        expect(errors).toHaveLength(0);
+        expect(elements).toHaveLength(1);
+        expect(elements[0]).toMatchObject({
+          type: 'tag',
+          attrs: {
+            a: true,
+            b: 1
           }
         });
       });
@@ -195,7 +208,7 @@ describe('Parser', function () {
         });
       });
 
-      cases('should parse many attributes in various order', (attribs: string[]) => {
+      cases('should parse attributes in any order', (attribs: string[]) => {
         const attributeInsert = attribs.join(' ');
         const {elements, errors} = parse(`<MyTag ${attributeInsert}></MyTag>`);
         expect(errors).toHaveLength(0);
