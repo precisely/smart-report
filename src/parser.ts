@@ -1,9 +1,8 @@
-import { zipObject, isString } from 'lodash';
+import { zipObject, isString, isFunction } from 'lodash';
+import streams from 'memory-streams';
 
 import Cursor from './cursor';
-import streams from 'memory-streams';
-import { isFunction } from 'lodash';
-import { CodeError, ErrorType } from './error';
+import { ErrorType } from './error';
 import { OpType } from './evaluator';
 import { Element, Interpolation, TagElement, TextElement, Attribute, Hash, Expression, Location } from './types';
 
@@ -346,7 +345,7 @@ export default class Parser {
         type: 'interpolation',
         expression: expression
       };
-      this.cursor.capture(/^\s*\}/); // consume the final }
+      this.cursor.capture(/^[^}]*\}/m); // consume the final }
       return result;
     }
     return null;
