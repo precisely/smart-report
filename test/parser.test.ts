@@ -4,7 +4,7 @@ import path from 'path';
 
 import Parser, { DEFAULT_INTERPOLATION_POINT, ATTRIBUTE_RE } from '../src/parser';
 import { markdownItEngine } from '../src/engines';
-import { Interpolation, Element, ReducedAttribute } from '../src/types';
+import { Interpolation, Element } from '../src/types';
 import { isArray } from 'util';
 import { ParserError } from '../src/parser';
 import cases = require('jest-in-case');
@@ -549,6 +549,13 @@ describe('Parser', function () {
     });
 
     describe('with bad input', function () {
+
+      it('should parse various invalid interpolation elements', function () {
+        expect(parse('First Line OK\n12345{<}This is text after the error').errors).toHaveLength(1);
+        expect(parse('First Line OK\n12345{a.b < d a>}This is text after the error').errors).toHaveLength(1);
+        expect(parse('First Line OK\n12345{ {d} >}This is text after the error').errors).toHaveLength(1);
+      });
+      
       it("should throw an error if closing tag isn't present", function () {
         expect(parse('<outer><inner></inner>').errors).not.toHaveLength(0);
       });
