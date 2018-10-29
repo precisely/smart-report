@@ -38,24 +38,24 @@ describe('Cursor', function () {
   describe('#test', function () {
     it('should return true if the regex matches current input position', function () {
       var cursor = new Cursor('abcdefg');
-      expect(cursor.test(/abc/)).toBe(true);;
-      expect(cursor.test(/def/)).toBe(true);;
+      expect(cursor.test(/abc/)).toBe(true);
+      expect(cursor.test(/def/)).toBe(true);
     });
 
     it('should return false if the regex does not match text from the current input position', function () {
       var cursor = new Cursor('abcdefg', 3);
-      expect(cursor.test(/abc/)).toBe(false);;
+      expect(cursor.test(/abc/)).toBe(false);
     });
 
     it('should test at the provided offset', function () {
       var cursor = new Cursor('abcdefg', 3);
-      expect(cursor.test(/abc/, -3)).toBe(true);;
-      expect(cursor.test(/abc/, 1)).toBe(false);;
+      expect(cursor.test(/abc/, -3)).toBe(true);
+      expect(cursor.test(/abc/, 1)).toBe(false);
     });
 
     it('should return false when cursor is eof', function () {
       var cursor = new Cursor('abc', 3);
-      expect(cursor.test(/.*/)).toBe(false);;
+      expect(cursor.test(/.*/)).toBe(false);
     });
   });
 
@@ -80,8 +80,32 @@ describe('Cursor', function () {
       var cursor = new Cursor('abc', 3);
       expect(cursor.capture(/(.*)/)).toBeNull();
     });
+
   });
 
+  describe('unicode handling', function () {
+    let cursor;
+    beforeEach(function () {
+      cursor = new Cursor('0123\u{1F639}890');
+    });      
+    it('should capture unicode characters where the index represents', function () {
+      cursor.capture(/😹/);
+      expect(cursor.index).toEqual(8);
+    });
+
+    it('should seek to a buffer index', function () {
+      cursor.seek(8);
+      expect(cursor.peek(1)).toEqual('8');
+    });
+
+    it('should get the correct index for a line', function () {
+       const multilineCursor = new Cursor('\u{1F639}\n\n\u{1F639}\nhello\nsailor');
+       const index = multilineCursor.indexFromLine(4);
+       expect(index).toEqual(11);
+       multilineCursor.seek(index);
+       expect(multilineCursor.peek(5)).toEqual('hello');
+    });
+  });
   describe('#seek', function () {
     it('should reset the index to 0 when no args are given', function () {
       var cursor = new Cursor('abcdefg', 5);
@@ -100,20 +124,19 @@ describe('Cursor', function () {
     it('should be true when index before the end of the input', function () {
       var cursor = new Cursor('abcdefg');
       cursor.seek(6);
-      expect(cursor.eof).toBe(false);;
+      expect(cursor.eof).toBe(false);
     });
 
     it('should be false when index at the end of the input', function () {
       var cursor = new Cursor('abcdefg');
       cursor.seek(7);
-      expect(cursor.eof).toBe(true);;
+      expect(cursor.eof).toBe(true);
     });
-
 
     it('should be false when index is beyond the end of the input', function () {
       var cursor = new Cursor('abcdefg');
       cursor.seek(8);
-      expect(cursor.eof).toBe(true);;
+      expect(cursor.eof).toBe(true);
     });
   });
 
@@ -183,8 +206,8 @@ describe('Cursor', function () {
     });
 
     it('should throw for lineNumber<1', function () {
-      expect(()=>cursor.indexFromLine(0)).toThrow();
-      expect(()=>cursor.indexFromLine(-2)).toThrow();
+      expect(() => cursor.indexFromLine(0)).toThrow();
+      expect(() => cursor.indexFromLine(-2)).toThrow();
     });
 
     it('should return the index of the first character of the second line for lineNumber=2', function () {

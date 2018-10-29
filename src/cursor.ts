@@ -62,7 +62,8 @@ export default class Cursor implements Location {
   capture(re: RegExp, offset: number = 0): RegExpMatchArray | null {
     var match = this.eof ? null : re.exec(this._buffer.slice(this._index + offset).toString());
     if (match) {
-      this._index += match[0].length + match.index;
+      const buffer = new Buffer(match.input.slice(0, match.index + match[0].length));
+      this._index += buffer.length;
     }
     return match;
   }
@@ -114,7 +115,7 @@ export default class Cursor implements Location {
       throw new Error(`Line number out of range ${lineNumber}`);
     }
     selectedLines.forEach(line => {
-      total += line.length + 1;
+      total += new Buffer(line).length + 1;
     });
     return total;
   }
