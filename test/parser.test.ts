@@ -437,6 +437,18 @@ describe('Parser', function () {
         ]);
       });
 
+      it('should parse interpolation with a logic expression in uppercase', function () {
+        var { elements, errors }: { elements: any, errors: ParserError[] } = parse('{ foo("bar") AND "hello" OR x.y }'); // tslint:disable-line
+        expect(isArray(elements)).toBeTruthy();
+        expect(elements[0].type).toEqual('text');
+        const funcallBlock = elements[0].blocks[1];
+        expect(funcallBlock.expression).toEqual([
+          'and',
+          ['funcall', 'foo', { lineNumber: 1, columnNumber: 7 }, ['scalar', 'bar']],
+          ['or', ['scalar', 'hello'], ['accessor', 'x.y']]
+        ]);
+      });
+
       it('should parse interpolation in the midst of text', function () {
         var { elements, errors }: { elements: any, errors: ParserError[] } = parse('hello { x.y } sailor'); // tslint:disable-line
         expect(isArray(elements)).toBeTruthy();

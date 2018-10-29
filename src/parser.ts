@@ -374,7 +374,7 @@ export default class Parser {
     if (expressionMatch) {
       const capture = expressionMatch[0].trim();
       if (expressionMatch[1]) { // binary operator
-        return this.captureInterpolationBinaryOperator(expressionMatch[1], lhs, terminator);
+        return this.captureInterpolationBinaryOperator(expressionMatch[1].toLowerCase(), lhs, terminator);
       } else if (lhs) {
         this.error(
           `Expecting "and" or "or" but received "${capture}"`,
@@ -385,7 +385,7 @@ export default class Parser {
       } else if (expressionMatch[6]) { // scalar
         return this.captureScalarExpression(expressionMatch[6]);
       } else if (expressionMatch[2]) { // not
-        return this.captureInterpolationUnaryOperator(expressionMatch[2], terminator);
+        return this.captureInterpolationUnaryOperator(expressionMatch[2].toLowerCase(), terminator);
       } else if (expressionMatch[3]) { // group start: ( ...
         return this.captureInterpolationGroup();
       }
