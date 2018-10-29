@@ -89,14 +89,18 @@ export default class Parser {
   content(closeTag?: string, removeIndent: boolean = false, startTagLocation?: Location): Element<Interpolation>[] {
     const closeTest: RegExp | null = closeTag ? new RegExp(`^</${closeTag}>`, 'i') : null;
     var elements: Element<Interpolation>[] = [];
-
+    let index = this.cursor.index;
     while (!this.cursor.eof) {
       if (
         this.captureContentUntil(() => this.tag(), closeTest, elements) ||
         this.captureContentUntil(() => this.text(removeIndent), closeTest, elements)
       ) {
         return elements;
+      } else if (index === this.cursor.index) {
+        this.error('Syntax error', ErrorType.SyntaxError);
+        break;
       }
+      index = this.cursor.index;
     }
 
     if (closeTag) {

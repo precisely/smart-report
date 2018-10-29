@@ -502,6 +502,18 @@ describe('Parser', function () {
         }]);
       });
 
+      it('should ignore multiline comments', function () {
+        var { elements, errors }: { elements: any, errors: ParserError[] } = parse(
+          '<# \nignored\nignored \nignored\n #>hello sailor'
+        ); 
+        expect(errors).toHaveLength(0);
+        expect(elements).toEqual([{
+          type: 'text',
+          blocks: [ '<p>hello sailor</p>' ],
+          reduced: false
+        }]);
+      });
+
       it('should ignore comments at the end of text', function () {
         var { elements, errors }: { elements: any, errors: ParserError[] } = parse('hello sailor<# ignored #>'); 
         expect(elements).toEqual([{
@@ -550,10 +562,19 @@ describe('Parser', function () {
 
     describe('with bad input', function () {
 
-      it('should parse various invalid interpolation elements', function () {
-        expect(parse('First Line OK\n12345{<}This is text after the error').errors).toHaveLength(1);
-        expect(parse('First Line OK\n12345{a.b < d a>}This is text after the error').errors).toHaveLength(1);
-        expect(parse('First Line OK\n12345{ {d} >}This is text after the error').errors).toHaveLength(1);
+      describe('during interpolation', function () {
+        it('should return an error if a tag start (<) appears ', function () {
+          expect(parse('First Line OK\n12345{<}This is text after the error').errors).toHaveLength(1);
+        });
+        
+        it('should return an error if a tag end (>) appears', function () {
+          expect(parse('First Line OK\n12345{a.b < d a>}This is text after the error').errors).toHaveLength(1);
+        });
+
+        it.only('should fail when extra braces', function () {
+          expect(parse('First Line OK\n12345{ {d} >}This is text after the error').errors).not.toHaveLength(0);
+        });
+        
       });
       
       it("should throw an error if closing tag isn't present", function () {

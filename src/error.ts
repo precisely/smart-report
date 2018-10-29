@@ -13,7 +13,8 @@ export const enum ErrorType {
    NoClosingComment = 'NoClosingComment',
    UnknownTag = 'UnknownTag',
    InvalidSymbol = 'InvalidSymbol',
-   InvalidAttribute = 'InvalidAttribute'
+   InvalidAttribute = 'InvalidAttribute',
+   SyntaxError = 'SyntaxError'
 }
 
 export class CodeError extends Error {
