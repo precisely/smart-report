@@ -1,6 +1,8 @@
 import { evaluate } from '../src/evaluator';
 import { Context, InterpolationFunction, Hash } from '../src/types';
 import cases from 'jest-in-case';
+import { CodeError } from '../src/error';
+import { Location } from '../lib/types';
 
 describe('evaluator', function () {
   it('should evaluate a scalar', function () {
@@ -76,6 +78,22 @@ describe('evaluator', function () {
   it('should throw an error if an invalid expression is provided', function () {
     expect(() => evaluate(['no such op'], {}, {})).toThrow();
     expect(() => evaluate([], {}, {})).toThrow();
+  });
+
+  it('should throw and error if a function call fails', function () {
+    const fn = () => evaluate(['funcall', 'error', {lineNumber: 2, columnNumber: 4}], {}, {
+      error() {
+        throw new Error();
+      }
+    });
+    expect(fn).toThrow(CodeError);
+    try {
+      fn();
+    } catch (e) {
+      const location = e.location;
+      expect(location.lineNumber).toEqual(2);
+      expect(location.columnNumber).toEqual(4);
+    }
   });
 
   describe('when analysis flag is set,', function () {
