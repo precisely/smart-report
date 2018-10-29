@@ -514,6 +514,26 @@ describe('Parser', function () {
         }]);
       });
 
+      it('should ignore multiline indented comments', function () {
+        var { elements, errors }: { elements: any, errors: ParserError[] } = parse(
+          '<foo>\n   <# \nignored\nignored \nignored\n #>\n   hello sailor</foo>'
+        ); 
+        expect(errors).toHaveLength(0);
+        expect(elements).toEqual([{
+          type: 'tag',
+          name: 'foo',
+          attrs: {},
+          rawName: 'foo',
+          children: [{
+            type: 'text',
+            blocks: [ '<p>hello sailor</p>' ],
+            reduced: false
+          }],
+          reduced: false,
+          selfClosing: false
+        }]);
+      });
+
       it('should ignore comments at the end of text', function () {
         var { elements, errors }: { elements: any, errors: ParserError[] } = parse('hello sailor<# ignored #>'); 
         expect(elements).toEqual([{
@@ -767,5 +787,16 @@ describe('Parser', function () {
         expect(detected[0].location.lineNumber).toEqual(10);
       });
     });
+  });
+
+  describe('real world test', function () {
+    it('should read real world input', function () {
+      const example = fs.readFileSync(path.join(__dirname, 'realworld.md'));
+      const parser = new Parser({ markdownEngine: markdownItEngine() });
+      const parseResult = parser.parse(example);
+      const elements = parseResult.elements;
+      const errors = parseResult.errors;
+      expect(errors).toHaveLength(0);
+    });    
   });
 });
