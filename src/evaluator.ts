@@ -50,7 +50,11 @@ function evaluateFuncall(
 
   const evaluatedArgs = (<EvalArg[]> fnargs).map(arg => evaluate(arg, context, functions, true));
 
-  return interpolationFunction(context, ...evaluatedArgs);
+  try {
+    return interpolationFunction(context, ...evaluatedArgs);
+  } catch (e) {
+    throw new CodeError(`Evaluation failed: ${e.message}`, location, ErrorType.EvaluationFailed);
+  }
 }
 
 const evaluators: Hash<EvaluationFunction> = {
