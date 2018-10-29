@@ -571,7 +571,7 @@ describe('Parser', function () {
           expect(parse('First Line OK\n12345{a.b < d a>}This is text after the error').errors).toHaveLength(1);
         });
 
-        it.only('should fail when extra braces', function () {
+        it('should fail when extra braces', function () {
           expect(parse('First Line OK\n12345{ {d} >}This is text after the error').errors).not.toHaveLength(0);
         });
         
