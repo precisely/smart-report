@@ -609,50 +609,60 @@ describe('Parser', function () {
         
       });
       
-      it("should throw an error if closing tag isn't present", function () {
+      it("should return an error if closing tag isn't present", function () {
         expect(parse('<outer><inner></inner>').errors).not.toHaveLength(0);
       });
 
-      it('should throw an error if invalid closing tag is encountered', function () {
+      it('should return an error if invalid closing tag is encountered', function () {
         expect(parse('<outer><inner></outer>').errors).not.toHaveLength(0);
       });
 
-      it('should throw an error if an invalid attribute is given', function () {
+      it('should return an error if an invalid attribute is given', function () {
         expect(true).toBeTruthy();
         expect(parse('<tag a=1 b=[123]></tag>').errors).not.toHaveLength(0);
         expect(parse("<tag a=1 b='123'></tag>").errors).not.toHaveLength(0);
       });
 
-      it('should throw an error if an attribute interpolation is unclosed', function () {
+      it('should return an error if an attribute interpolation is unclosed', function () {
         expect(parse('<tag a={></tag>').errors).not.toHaveLength(0);
       });
 
-      it('should throw an error if the tag end brace is missing', function () {
+      it('should return an error if the tag end brace is missing', function () {
         expect(parse('<tag</tag>').errors).not.toHaveLength(0);
       });
 
-      it('should throw an error if an incomplete end tag is encountered', function () {
+      it('should return an error if an incomplete end tag is encountered', function () {
         expect(parse('</').errors).not.toHaveLength(0);
       });
 
-      it('should throw an error if an incomplete end tag is encountered', function () {
+      it('should return an error if an incomplete end tag is encountered', function () {
         expect(parse('<tag></></tag>').errors).not.toHaveLength(0);
       });
 
-      it('should throw an error if an empty tag is encounter', function () {
+      it('should return an error if an empty tag is encounter', function () {
         expect(parse('<>').errors).not.toHaveLength(0);
       });
 
-      it('should throw an error if closing tag is encountered with non-word characters', function () {
+      it('should return an error if it encounters a binary operator without a rhs term', function () {
+        expect(parse('{ x and y}').errors).toHaveLength(0);
+        expect(parse('{ x and }').errors).toHaveLength(1);
+      });
+
+      it('should return an error if it encounters a unary operator without a rhs term', function () {
+        expect(parse('{ not y}').errors).toHaveLength(0);
+        expect(parse('{ not }').errors).toHaveLength(1);
+      });
+
+      it('should return an error if closing tag is encountered with non-word characters', function () {
         expect(parse('</ >').errors).not.toHaveLength(0);
       });
 
-      it('should throw an error if closing tag with non-word characters is encountered', function () {
+      it('should return an error if closing tag with non-word characters is encountered', function () {
         expect(parse('<\t>').errors).not.toHaveLength(0);
         expect(parse('<  >').errors).not.toHaveLength(0);
       });
 
-      it('should throw an error if unbalanced comment syntax is encountered', function () {
+      it('should return an error if unbalanced comment syntax is encountered', function () {
         expect(parse('Here is some text <# unclosed comment ooops!').errors).not.toHaveLength(0);
       });
     });

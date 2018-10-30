@@ -418,7 +418,13 @@ export default class Parser {
       this.error(`Unexpected operator ${binOp}`, ErrorType.UnexpectedOperator);
       return [];
     } else {
-      return [binOp, lhs, this.captureInterpolationExpression(terminator)];
+      const rhs = this.captureInterpolationExpression(terminator);
+      if (!rhs) {
+        this.error(`Expecting expression after ${binOp}`, ErrorType.InvalidArgument);
+        return [];
+      } else {
+        return [binOp, lhs, rhs];
+      }
     }
   }
 
