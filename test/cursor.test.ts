@@ -105,6 +105,11 @@ describe('Cursor', function () {
        multilineCursor.seek(index);
        expect(multilineCursor.peek(5)).toEqual('hello');
     });
+
+    it('should read a string containing a 3 byte unicode character', function () {
+      cursor = new Cursor('\u2019 <hello />');
+      expect(cursor.peek(100)).toEqual('\u2019 <hello />');
+    });
   });
   describe('#seek', function () {
     it('should reset the index to 0 when no args are given', function () {

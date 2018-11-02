@@ -667,6 +667,22 @@ describe('Parser', function () {
       });
     });
 
+    describe('unicode', function () {
+      cases('should read a tag successfully after unicode input', function (unicode: string) {
+        const weirdQuote = String.fromCharCode(8217);
+        const {elements, errors} = parse(`${unicode}\n<foo bar />\n`);
+        expect(errors).toHaveLength(0);
+        expect(elements).toMatchObject([
+          { type: 'text' },
+          { type: 'tag', name: 'foo'}
+        ]);
+       }, [
+          '🐱',
+          String.fromCharCode(8217),
+          '🐱🐱',
+          '🐱' + String.fromCharCode(8217)
+      ]);      
+    });
     describe('with complex input', function () {
       var elements: any; // tslint:disable-line
       var errors: ParserError[];

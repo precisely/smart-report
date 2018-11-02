@@ -7,7 +7,7 @@ export default class Cursor implements Location {
     if (input instanceof Buffer) { // funky duplication because @types/node uses overloads
       this._buffer = Buffer.alloc(input.length, input);
     } else {
-      this._buffer = Buffer.alloc(input.length, input);
+      this._buffer = new Buffer(input);
     }
   }
   private _index: number;
