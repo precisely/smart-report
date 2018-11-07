@@ -7,7 +7,7 @@ import { OpType } from './evaluator';
 import { Element, Interpolation, TagElement, TextElement, Attribute, Hash, Expression, Location } from './types';
 
 export const DEFAULT_INTERPOLATION_POINT = '=interpolation-point=';
-export const ATTRIBUTE_RE = /^\s*(\w+)\s*(?:(?:=\s*((?:"([^"]*)")|([-+]?[0-9]*\.?[0-9]+)|((?=\{))|(true|false)))|(\s+|(?=\/?>))|([^\w]))/; // tslint:disable-line
+export const ATTRIBUTE_RE = /^\s*([\w\-\_]+)\s*(?:(?:=\s*((?:"([^"]*)")|([-+]?[0-9]*\.?[0-9]+)|((?=\{))|(true|false)))|(\s+|(?=\/?>))|([^\w]))/; // tslint:disable-line
 
 type CaptureFn = () => Element<Interpolation> | null;
 export type ParserOptions = {

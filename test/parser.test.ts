@@ -92,6 +92,18 @@ describe('Parser', function () {
       expect(ATTRIBUTE_RE.exec('a="str"')).toBeDefined();
     });
 
+    it('should parse an attribute with dash', function () {
+      expect(ATTRIBUTE_RE.exec('a-b="str"')).toBeDefined();
+    });
+
+    it('should parse an attribute with underscore', function () {
+      expect(ATTRIBUTE_RE.exec('a_b="str"')).toBeDefined();
+    });
+
+    it('should parse an attribute with numbers', function () {
+      expect(ATTRIBUTE_RE.exec('a123="str"')).toBeDefined();
+    });
+
     it('should parse a float attribute', function () {
       expect(ATTRIBUTE_RE.exec('a=1.23')).toBeDefined();
     });
